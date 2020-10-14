@@ -1,0 +1,101 @@
+#include "logging.h"
+#include "mmu.h"
+
+MMU::MMU(Cartridge& cartridge, PPU& ppu)
+    : cartridge(cartridge), ppu(ppu) {
+    wram.fill(0x00);
+}
+
+u8 MMU::Read8(u32 addr) {
+    const u32 masked_addr = addr & 0x0FFFFFFF;
+    switch ((masked_addr >> 24) & 0xF) {
+        case 0x8:
+            return cartridge.Read8(masked_addr & 0x1FFFFFF);
+        default:
+            LERROR("unrecognized read8 from 0x%08X", addr);
+            return 0xFF;
+    }
+}
+
+void MMU::Write8(u32 addr, u8 value) {
+    const u32 masked_addr = addr & 0x0FFFFFFF;
+    switch ((masked_addr >> 24) & 0xF) {
+        default:
+            LERROR("unrecognized write8 0x%02X to 0x%08X", value, addr);
+            return;
+    }
+}
+
+u16 MMU::Read16(u32 addr) {
+    const u32 masked_addr = addr & 0x0FFFFFFF;
+    switch ((masked_addr >> 24) & 0xF) {
+        case 0x4:
+            switch (masked_addr) {
+                case 0x4000004:
+                    LWARN("stubbed read16 from DISPSTAT");
+                    return ppu.GetDISPSTAT();
+                default:
+                    LERROR("unrecognized read16 from IO register 0x%08X", addr);
+                    return 0xFFFF;
+            }
+
+            return 0xFFFF;
+        case 0x8:
+            return cartridge.Read16(masked_addr & 0x1FFFFFF);
+        default:
+            LERROR("unrecognized read16 from 0x%08X", addr);
+            return 0xFFFF;
+    }
+}
+
+void MMU::Write16(u32 addr, u16 value) {
+    const u32 masked_addr = addr & 0x0FFFFFFF;
+    switch ((masked_addr >> 24) & 0xF) {
+        default:
+            LERROR("unrecognized write16 0x%04X to 0x%08X", value, addr);
+            return;
+    }
+}
+
+u32 MMU::Read32(u32 addr) {
+    const u32 masked_addr = addr & 0x0FFFFFFF;
+    switch ((masked_addr >> 24) & 0xF) {
+        case 0x3: {
+            u32 value = 0;
+            for (std::size_t i = 0; i < 4; i++) {
+                value |= ((wram.at((masked_addr & 0x7FFF) + i)) & 0xFF) << (8 * i);
+            }
+
+            LDEBUG("read32 0x%08X from 0x%08X (WRAM)", value, masked_addr);
+
+            return value;
+        }
+
+        case 0x8:
+            return cartridge.Read32(masked_addr & 0x1FFFFFF);
+
+        default:
+            LERROR("unrecognized read32 from 0x%08X", addr);
+            return 0xFFFFFFFF;
+    }
+}
+
+void MMU::Write32(u32 addr, u32 value) {
+    const u32 masked_addr = addr & 0x0FFFFFFF;
+    switch ((masked_addr >> 24) & 0xF) {
+        case 0x3:
+            LDEBUG("write32 0x%08X to 0x%08X (WRAM)", value, masked_addr);
+            for (size_t i = 0; i < 4; i++) {
+                // Mask off the last 2 bits to keep word alignment.
+                wram[((masked_addr & ~0b11) & 0x7FFF) + i] = (value >> (8 * i)) & 0xFF;
+            }
+            return;
+
+        case 0x8:
+            LWARN("tried to write32 0x%08X to 0x%08X (cartridge space)", value, masked_addr);
+            return;
+
+        default:
+            LERROR("unrecognized write32 0x%08X to 0x%08X", value, addr);
+    }
+}
