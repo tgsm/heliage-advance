@@ -315,6 +315,44 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             }
 
             break;
+        case 0x1:
+            if (op2_is_immediate) {
+                u8 rotate_amount = (op2 >> 8) & 0xF;
+                u8 imm = op2 & 0xFF;
+                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
+
+                r[rd] = r[rn] ^ rotated_operand;
+            } else {
+                u8 shift = (op2 >> 4) & 0xFF;
+                if ((shift & 0b1) == 0) {
+                    u8 shift_amount = (shift >> 3) & 0x1F;
+                    u8 shift_type = (shift >> 1) & 0b11;
+                    u8 rm = op2 & 0xF;
+
+                    if (!shift_amount) {
+                        r[rd] = r[rn] ^ r[rm];
+                        if (rd == 15) {
+                            FillPipeline();
+                        }
+
+                        break;
+                    }
+
+                    switch (shift_type) {
+                        case 0b00:
+                            r[rd] = r[rn] ^ (r[rm] << shift_amount);
+                            break;
+                        default:
+                            UNIMPLEMENTED_MSG("unimplemented eor shift type 0x%X", shift_type);
+                    }
+                } else if ((shift & 0b1001) == 0b0001) {
+                    UNIMPLEMENTED();
+                } else {
+                    ASSERT(false);
+                }
+            }
+
+            break;
         case 0x2:
             if (op2_is_immediate) {
                 u8 rotate_amount = (op2 >> 8) & 0xF;
@@ -365,6 +403,20 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             }
 
             break;
+        case 0x8:
+            if (op2_is_immediate) {
+                u8 rotate_amount = (op2 >> 8) & 0xF;
+                u8 imm = op2 & 0xFF;
+                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
+
+                u32 result = r[rn] & rotated_operand;
+                cpsr.flags.negative = (result & (1 << 31));
+                cpsr.flags.zero = (result == 0);
+            } else {
+                UNIMPLEMENTED_MSG("interpreter: unimplemented TST with register as op2");
+            }
+
+            return;
         case 0xA:
             if (op2_is_immediate) {
                 u8 rotate_amount = (op2 >> 8) & 0xF;
@@ -524,7 +576,8 @@ void ARM7::ARM_SingleDataTransfer(const u32 opcode) {
             ARM_LoadWord(opcode);
             break;
         case 0b100:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented store byte");
+            ARM_StoreByte(opcode);
+            break;
         case 0b101:
             ARM_LoadByte(opcode);
             break;
@@ -562,7 +615,16 @@ void ARM7::ARM_LoadWord(const u32 opcode) {
             LERROR("interpreter: unimplemented load word write-back");
         }
     } else {
-        UNIMPLEMENTED_MSG("interpreter: unimplemented load word post-index");
+        address &= ~0x3; // Word align
+        r[rd] = mmu.Read32(address);
+
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        r[rn] = address;
     }
 }
 
@@ -637,6 +699,46 @@ void ARM7::ARM_LoadByte(const u32 opcode) {
         }
     } else {
         r[rd] = mmu.Read8(address);
+
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        r[rn] = address;
+    }
+}
+
+void ARM7::ARM_StoreByte(const u32 opcode) {
+    const bool offset_is_register = (opcode >> 25) & 0b1;
+    const bool add_before_transfer = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    u16 offset = 0;
+    if (offset_is_register) {
+        LERROR("interpreter: unimplemented store word with register offset");
+    } else {
+        offset = opcode & 0xFFF;
+    }
+
+    u32 address = r[rn];
+    if (add_before_transfer) {
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        mmu.Write8(address, r[rd]);
+
+        if (write_back) {
+            LERROR("interpreter: unimplemented store word write-back");
+        }
+    } else {
+        mmu.Write8(address, r[rd]);
 
         if (add_offset_to_base) {
             address += offset;

@@ -106,6 +106,7 @@ private:
     void ARM_LoadWord(const u32 opcode);
     void ARM_StoreWord(const u32 opcode);
     void ARM_LoadByte(const u32 opcode);
+    void ARM_StoreByte(const u32 opcode);
 
     void ARM_MSR(const u32 opcode);
     void ARM_DisassembleMSR(const u32 opcode);
