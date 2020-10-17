@@ -379,7 +379,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 UNIMPLEMENTED_MSG("interpreter: unimplemented CMP with register as op2");
             }
 
-            break;
+            return;
         case 0xC:
             if (op2_is_immediate) {
                 u8 rotate_amount = (op2 >> 8) & 0xF;
