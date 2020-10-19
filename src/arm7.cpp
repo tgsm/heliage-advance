@@ -158,6 +158,9 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
         case Thumb_Instructions::LoadStoreWithImmediateOffset:
             Thumb_LoadStoreWithImmediateOffset(opcode);
             break;
+        case Thumb_Instructions::LoadAddress:
+            Thumb_LoadAddress(opcode);
+            break;
         case Thumb_Instructions::PushPopRegisters:
             Thumb_PushPopRegisters(opcode);
             break;
@@ -1374,4 +1377,12 @@ void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
 
     r[15] += (offset << 1);
     FillPipeline();
+}
+
+void ARM7::Thumb_LoadAddress(const u16 opcode) {
+    const bool load_from_sp = (opcode >> 11) & 0b1;
+    const u8 rd = (opcode >> 8) & 0x7;
+    const u8 imm = opcode & 0xFF;
+
+    r[rd] = (imm << 2) + (load_from_sp ? r[13] : r[15]);
 }

@@ -167,4 +167,7 @@ private:
 
     void Thumb_UnconditionalBranch(const u16 opcode);
     void Thumb_DisassembleUnconditionalBranch(const u16 opcode);
+
+    void Thumb_LoadAddress(const u16 opcode);
+    void Thumb_DisassembleLoadAddress(const u16 opcode);
 };

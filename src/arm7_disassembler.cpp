@@ -61,6 +61,9 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         case Thumb_Instructions::LoadStoreWithImmediateOffset:
             Thumb_DisassembleLoadStoreWithImmediateOffset(opcode);
             break;
+        case Thumb_Instructions::LoadAddress:
+            Thumb_DisassembleLoadAddress(opcode);
+            break;
         case Thumb_Instructions::PushPopRegisters:
             Thumb_DisassemblePushPopRegisters(opcode);
             break;
@@ -815,4 +818,23 @@ void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
     const s16 offset = opcode & 0x7FF;
 
     LTRACE_THUMB("B 0x%08X", r[15] + (offset << 1));
+}
+
+void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
+    const bool load_from_sp = (opcode >> 11) & 0b1;
+    const u8 rd = (opcode >> 8) & 0x7;
+    const u8 imm = opcode & 0xFF;
+    std::string disasm;
+
+    disasm += fmt::format("ADD R{}, ", rd);
+
+    if (load_from_sp) {
+        disasm += "SP";
+    } else {
+        disasm += "PC";
+    }
+
+    disasm += fmt::format(", #0x{:X}", imm << 2);
+
+    LTRACE_THUMB("%s", disasm.c_str());
 }
