@@ -4,8 +4,8 @@
 #include "arm7.h"
 #include "logging.h"
 
-ARM7::ARM7(MMU& mmu)
-    : mmu(mmu) {
+ARM7::ARM7(MMU& mmu, PPU& ppu)
+    : mmu(mmu), ppu(ppu) {
     // Initialize the pipeline and registers
     pipeline.fill(0);
     r.fill(0);
@@ -49,6 +49,9 @@ void ARM7::Step(bool disassemble) {
             DisassembleARMInstruction(instr, opcode);
         ExecuteARMInstruction(instr, opcode);
     }
+
+    // TODO: actual timing
+    ppu.AdvanceCycles(1);
 }
 
 ARM7::ARM_Instructions ARM7::DecodeARMInstruction(const u32 opcode) const {

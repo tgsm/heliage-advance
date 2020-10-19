@@ -5,7 +5,7 @@
 
 class ARM7 {
 public:
-    ARM7(MMU& mmu);
+    ARM7(MMU& mmu, PPU& ppu);
 
     void Step(bool disassemble);
 private:
@@ -94,6 +94,7 @@ private:
     } cpsr;
 
     MMU& mmu;
+    PPU& ppu;
 
     void ARM_Branch(const u32 opcode);
     void ARM_DisassembleBranch(const u32 opcode);
