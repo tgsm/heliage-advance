@@ -88,6 +88,9 @@ void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode)
         case ARM_Instructions::BranchAndExchange:
             ARM_BranchAndExchange(opcode);
             break;
+        case ARM_Instructions::HalfwordDataTransferRegister:
+            ARM_HalfwordDataTransferRegister(opcode);
+            break;
         case ARM_Instructions::HalfwordDataTransferImmediate:
             ARM_HalfwordDataTransferImmediate(opcode);
             break;
@@ -780,17 +783,32 @@ void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
     const u8 conditions = (load_from_memory << 1) | halfword;
     switch (conditions) {
         case 0b01:
-            ARM_StoreHalfword(opcode, sign);
+            ARM_StoreHalfwordImmediate(opcode, sign);
             break;
         case 0b11:
-            ARM_LoadHalfword(opcode, sign);
+            ARM_LoadHalfwordImmediate(opcode, sign);
             break;
         default:
             UNIMPLEMENTED_MSG("unimplemented halfword data transfer immediate conditions 0x%X", conditions);
     }
 }
 
-void ARM7::ARM_StoreHalfword(const u32 opcode, const bool sign) {
+void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
+    const bool load_from_memory = (opcode >> 20) & 0b1;
+    const bool sign = (opcode >> 6) & 0b1;
+    const bool halfword = (opcode >> 5) & 0b1;
+
+    const u8 conditions = (load_from_memory << 1) | halfword;
+    switch (conditions) {
+        case 0b01:
+            ARM_StoreHalfwordRegister(opcode, sign);
+            break;
+        default:
+            UNIMPLEMENTED_MSG("unimplemented halfword data transfer register conditions 0x%X", conditions);
+    }
+}
+
+void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
     const bool pre_indexing = (opcode >> 24) & 0b1;
     const bool add_offset_to_base = (opcode >> 23) & 0b1;
     const bool write_back = (opcode >> 21) & 0b1;
@@ -828,7 +846,40 @@ void ARM7::ARM_StoreHalfword(const u32 opcode, const bool sign) {
     ASSERT_MSG(!write_back, "unimplemented store halfword write-back");
 }
 
-void ARM7::ARM_LoadHalfword(const u32 opcode, const bool sign) {
+void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
+    const bool pre_indexing = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const u8 rm = opcode & 0xF;
+
+    u32 address = r[rn];
+    if (pre_indexing) {
+        if (add_offset_to_base) {
+            address += r[rm];
+        } else {
+            address -= r[rm];
+        }
+
+        mmu.Write16(address, sign ? static_cast<s16>(r[rd]) : r[rd]);
+
+        if (write_back) {
+            r[rn] = address;
+        }
+    } else {
+        mmu.Write16(address, sign ? static_cast<s16>(r[rd]) : r[rd]);
+        if (add_offset_to_base) {
+            address += r[rm];
+        } else {
+            address -= r[rm];
+        }
+
+        r[rn] = address;
+    }
+}
+
+void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
     const bool pre_indexing = (opcode >> 24) & 0b1;
     const bool add_offset_to_base = (opcode >> 23) & 0b1;
     const bool write_back = (opcode >> 21) & 0b1;

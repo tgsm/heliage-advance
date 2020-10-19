@@ -14,6 +14,9 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
         case ARM_Instructions::BranchAndExchange:
             ARM_DisassembleBranchAndExchange(opcode);
             break;
+        case ARM_Instructions::HalfwordDataTransferRegister:
+            ARM_DisassembleHalfwordDataTransferRegister(opcode);
+            break;
         case ARM_Instructions::HalfwordDataTransferImmediate:
             ARM_DisassembleHalfwordDataTransferImmediate(opcode);
             break;
@@ -368,6 +371,60 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
     }
 
     LERROR("unfinished halfword data transfer immediate disassembly");
+    LTRACE_ARM("%s", disasm.c_str());
+}
+
+void ARM7::ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode) {
+    const u8 cond = (opcode >> 28) & 0xF;
+    const bool pre_indexing = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const bool load_from_memory = (opcode >> 20) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const bool sign = (opcode >> 6) & 0b1;
+    const bool halfword = (opcode >> 5) & 0b1;
+    const u8 rm = opcode & 0xF;
+    std::string disasm;
+
+    if (load_from_memory) {
+        disasm += "LDR";
+    } else {
+        disasm += "STR";
+    }
+
+    disasm += GetConditionCode(cond);
+
+    if (sign) {
+        disasm += "S";
+    }
+
+    if (halfword) {
+        disasm += "H";
+    } else {
+        disasm += "B";
+    }
+
+    disasm += fmt::format(" R{}, ", rd);
+
+    if (pre_indexing) {
+        disasm += fmt::format("[R{}, ", rn);
+        if (!add_offset_to_base) {
+            disasm += "-";
+        }
+        disasm += fmt::format("R{}]", rm);
+
+        if (write_back) {
+            disasm += "!";
+        }
+    } else {
+        disasm += fmt::format("[R{}], ", rn);
+        if (!add_offset_to_base) {
+            disasm += "-";
+        }
+        disasm += fmt::format("R{}", rm);
+    }
+
     LTRACE_ARM("%s", disasm.c_str());
 }
 

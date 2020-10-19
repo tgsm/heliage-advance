@@ -116,8 +116,11 @@ private:
 
     void ARM_HalfwordDataTransferImmediate(const u32 opcode);
     void ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode);
-    void ARM_StoreHalfword(const u32 opcode, const bool sign);
-    void ARM_LoadHalfword(const u32 opcode, const bool sign);
+    void ARM_HalfwordDataTransferRegister(const u32 opcode);
+    void ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode);
+    void ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign);
+    void ARM_StoreHalfwordRegister(const u32 opcode, const bool sign);
+    void ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign);
 
     void ARM_BlockDataTransfer(const u32 opcode);
     void ARM_DisassembleBlockDataTransfer(const u32 opcode);
