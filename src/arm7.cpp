@@ -1224,16 +1224,44 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
     const u8 rd = opcode & 0x7;
 
     switch (op) {
+        case 0x0:
+            r[rd] &= r[rs];
+            break;
+        case 0x1:
+            r[rd] ^= r[rs];
+            break;
+        case 0x2:
+            // FIXME: for some reason, if we LSL 1 by 32, we get... 1.
+            if (r[rs] >= 32) {
+                r[rd] = 0;
+                break;
+            }
+
+            r[rd] <<= r[rs];
+            break;
+        case 0x8: {
+            u32 result = r[rd] & r[rs];
+            cpsr.flags.zero = (result == 0);
+            cpsr.flags.negative = (result & (1 << 31));
+            return;
+        }
         case 0xA:
             cpsr.flags.zero = (r[rd] == r[rs]);
             return;
+        case 0xC:
+            r[rd] |= r[rs];
+            break;
         case 0xE:
             r[rd] &= ~r[rs];
+            break;
+        case 0xF:
+            r[rd] = ~r[rs];
             break;
         default:
             UNIMPLEMENTED_MSG("interpreter: unimplemented thumb alu op 0x%X", op);
     }
 
+    cpsr.flags.negative = (r[rd] & (1 << 31));
     cpsr.flags.zero = (r[rd] == 0);
 }
 
