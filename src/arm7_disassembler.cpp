@@ -3,7 +3,6 @@
 #include "logging.h"
 
 void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opcode) {
-#ifdef LTRACE_ARM
     switch (instr) {
         case ARM_Instructions::DataProcessing:
             ARM_DisassembleDataProcessing(opcode);
@@ -34,11 +33,9 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
         default:
             UNIMPLEMENTED_MSG("disassembler: unhandled ARM instruction %u (opcode: %08X, pc: %08X)", static_cast<u8>(instr), opcode, r[15] - 8);
     }
-#endif
 }
 
 void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16 opcode) {
-#if defined(LTRACE_THUMB) || defined(LTRACE_DOUBLETHUMB)
     switch (instr) {
         case Thumb_Instructions::MoveShiftedRegister:
             Thumb_DisassembleMoveShiftedRegister(opcode);
@@ -84,7 +81,6 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         default:
             UNIMPLEMENTED_MSG("disassembler: unhandled THUMB instruction %u (opcode: %04X, pc: %08X)", static_cast<u8>(instr), opcode, r[15] - 4);
     }
-#endif
 }
 
 std::string ARM7::GetConditionCode(const u8 cond) {
@@ -129,12 +125,13 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
     }
 
     if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
-        ARM_DisassembleMSR(opcode);
+        ARM_DisassembleMSR(opcode, false);
         return;
     }
 
     if ((opcode & 0x0DBFF000) == 0x0128F000) {
-        UNIMPLEMENTED_MSG("disassembler: implement MSR");
+        ARM_DisassembleMSR(opcode, true);
+        return;
     }
 
     const u8 cond = (opcode >> 28) & 0xF;
@@ -309,7 +306,7 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
     LTRACE_ARM("%s", disasm.c_str());
 }
 
-void ARM7::ARM_DisassembleMSR(const u32 opcode) {
+void ARM7::ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only) {
     LTRACE_ARM("MSR");
 }
 
@@ -362,21 +359,24 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
         if (offset == 0) {
             disasm += fmt::format("[R{}]", rn);
         } else {
-            disasm += fmt::format("[R{}, #0x{:02X}]", rn, offset);
-
-            // TODO: offset of +/- contents of index register
+            disasm += fmt::format("[R{}, #", rn);
+            if (!add_offset_to_base) {
+                disasm += "-";
+            }
+            disasm += fmt::format("0x{:02X}]", offset);
 
             if (write_back) {
                 disasm += "!";
             }
         }
     } else {
-        disasm += fmt::format("[R{}], #0x{:02X}", rn, offset);
-
-        // TODO: offset of +/- contents of index register
+        disasm += fmt::format("[R{}], #", rn);
+        if (!add_offset_to_base) {
+            disasm += "-";
+        }
+        disasm += fmt::format("0x{:02X}", offset);
     }
 
-    LERROR("unfinished halfword data transfer immediate disassembly");
     LTRACE_ARM("%s", disasm.c_str());
 }
 

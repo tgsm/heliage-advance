@@ -18,14 +18,13 @@ ARM7::ARM7(MMU& mmu, PPU& ppu)
     // program counter
     r[15] = 0x08000000;
 
-    // TODO: initialize CPSR to 0 once we start loading the BIOS.
-    cpsr.raw = 0x0000001F;
+    cpsr.flags.processor_mode = ProcessorMode::System;
 
     FillPipeline();
 }
 
-void ARM7::Step(bool disassemble) {
-    // FIXME: put the piprline stuff in its own function
+void ARM7::Step(bool dump_registers) {
+    // FIXME: put the pipeline stuff in its own function
     if (cpsr.flags.thumb_mode) {
         const u16 opcode = pipeline[0];
 
@@ -34,8 +33,9 @@ void ARM7::Step(bool disassemble) {
         pipeline[1] = mmu.Read16(r[15]);
 
         const Thumb_Instructions instr = DecodeThumbInstruction(opcode);
-        if (disassemble)
-            DisassembleThumbInstruction(instr, opcode);
+        if (dump_registers)
+            DumpRegisters();
+        DisassembleThumbInstruction(instr, opcode);
         ExecuteThumbInstruction(instr, opcode);
     } else {
         const u32 opcode = pipeline[0];
@@ -45,8 +45,9 @@ void ARM7::Step(bool disassemble) {
         pipeline[1] = mmu.Read32(r[15]);
 
         const ARM_Instructions instr = DecodeARMInstruction(opcode);
-        if (disassemble)
-            DisassembleARMInstruction(instr, opcode);
+        if (dump_registers)
+            DumpRegisters();
+        DisassembleARMInstruction(instr, opcode);
         ExecuteARMInstruction(instr, opcode);
     }
 
@@ -186,11 +187,11 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
     }
 }
 
-void ARM7::DumpRegisters(const bool thumb) {
+void ARM7::DumpRegisters() {
     printf("r0: %08X r1: %08X r2: %08X r3: %08X\n", r[0], r[1], r[2], r[3]);
     printf("r4: %08X r5: %08X r6: %08X r7: %08X\n", r[4], r[5], r[6], r[7]);
     printf("r8: %08X r9: %08X r10:%08X r11:%08X\n", r[8], r[9], r[10], r[11]);
-    printf("r12:%08X r13:%08X lr: %08X pc: %08X\n", r[12], r[13], r[14], thumb ? r[15] - 4 : r[15] - 8);
+    printf("r12:%08X r13:%08X lr: %08X pc: %08X\n", r[12], r[13], r[14], cpsr.flags.thumb_mode ? r[15] - 4 : r[15] - 8);
     printf("cpsr:%08X\n", cpsr.raw);
 }
 
@@ -295,12 +296,13 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     }
 
     if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
-        ARM_MSR(opcode);
+        ARM_MSR(opcode, false);
         return;
     }
 
     if ((opcode & 0x0DBFF000) == 0x0128F000) {
-        UNIMPLEMENTED_MSG("interpreter: implement MSR");
+        ARM_MSR(opcode, true);
+        return;
     }
 
     const bool op2_is_immediate = (opcode >> 25) & 0b1;
@@ -762,7 +764,7 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
     }
 }
 
-void ARM7::ARM_MSR(const u32 opcode) {
+void ARM7::ARM_MSR(const u32 opcode, const bool flag_bits_only) {
     // TODO: from starbreeze:
     // "you might have to add some things to your msr later. (e.g. you can't change
     // control bits in User mode, there's a mask field that controls access to the
@@ -1160,6 +1162,7 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
             UNREACHABLE_MSG("interpreter: illegal thumb MCASI op 0x%X", op);
     }
 
+    cpsr.flags.negative = (r[rd] & (1 << 31));
     cpsr.flags.zero = (r[rd] == 0);
 }
 
@@ -1279,6 +1282,12 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
     switch (op) {
         case 0x2:
             r[h1 ? rd_hd + 8 : rd_hd] = r[h2 ? rs_hs + 8 : rs_hs];
+            // If we're setting R15 through here, we need to halfword align it
+            // and refill the pipeline.
+            if (h1 && rd_hd + 8 == 15) {
+                r[15] &= ~0b1;
+                FillPipeline();
+            }
             break;
         case 0x3:
             if (h2) {

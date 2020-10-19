@@ -7,7 +7,7 @@ class ARM7 {
 public:
     ARM7(MMU& mmu, PPU& ppu);
 
-    void Step(bool disassemble);
+    void Step(bool dump_registers);
 private:
     enum class ARM_Instructions {
         DataProcessing,
@@ -53,6 +53,16 @@ private:
         Unknown,
     };
 
+    enum class ProcessorMode : u8 {
+        User = 0b10000,
+        FIQ = 0b10001,
+        IRQ = 0b10010,
+        Supervisor = 0b10011,
+        Abort = 0b10111,
+        Undefined = 0b11011,
+        System = 0b11111,
+    };
+
     ARM_Instructions DecodeARMInstruction(const u32 opcode) const;
     void ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode);
     void DisassembleARMInstruction(const ARM_Instructions instr, const u32 opcode);
@@ -60,7 +70,7 @@ private:
     void ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opcode);
     void DisassembleThumbInstruction(const Thumb_Instructions instr, const u16 opcode);
 
-    void DumpRegisters(const bool thumb);
+    void DumpRegisters();
 
     void FillPipeline();
     void Die(const char* format, ...);
@@ -81,7 +91,7 @@ private:
         u32 raw = 0;
         struct {
             // FIXME: this struct assumes the user is running on a little-endian system.
-            u8 processor_mode : 5;
+            ProcessorMode processor_mode : 5;
             bool thumb_mode : 1;
             bool fiq : 1;
             bool irq : 1;
@@ -109,8 +119,8 @@ private:
     void ARM_LoadByte(const u32 opcode);
     void ARM_StoreByte(const u32 opcode);
 
-    void ARM_MSR(const u32 opcode);
-    void ARM_DisassembleMSR(const u32 opcode);
+    void ARM_MSR(const u32 opcode, const bool flag_bits_onl);
+    void ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only);
 
     void ARM_BranchAndExchange(const u32 opcode);
     void ARM_DisassembleBranchAndExchange(const u32 opcode);

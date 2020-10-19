@@ -1,6 +1,5 @@
 #include "gba.h"
 #include "logging.h"
-#include "types.h"
 
 GBA::GBA(Cartridge& cartridge)
     : mmu(cartridge, ppu), arm7(mmu, ppu) {
@@ -8,5 +7,5 @@ GBA::GBA(Cartridge& cartridge)
 }
 
 void GBA::Run() {
-    arm7.Step(true);
+    arm7.Step(false);
 }

@@ -9,9 +9,9 @@
 #define RED "\033[1;31m"
 #define PURPLE "\033[1;35m"
 
-#define LTRACE_ARM(format, ...) DumpRegisters(cpsr.flags.thumb_mode); printf("trace: %08X: %08X  " format "\033[0m\n\n", r[15] - 8, opcode, ##__VA_ARGS__)
-#define LTRACE_THUMB(format, ...) DumpRegisters(cpsr.flags.thumb_mode); printf("trace: %08X: %04X      " format "\033[0m\n\n", r[15] - 4, opcode, ##__VA_ARGS__)
-#define LTRACE_DOUBLETHUMB(format, ...) DumpRegisters(cpsr.flags.thumb_mode); printf("trace: %08X: %08X  " format "\033[0m\n\n", r[15] - 4, double_opcode, ##__VA_ARGS__)
+#define LTRACE_ARM(format, ...) printf("trace: %08X: %08X  " format "\033[0m\n", r[15] - 8, opcode, ##__VA_ARGS__)
+#define LTRACE_THUMB(format, ...) printf("trace: %08X: %04X      " format "\033[0m\n", r[15] - 4, opcode, ##__VA_ARGS__)
+#define LTRACE_DOUBLETHUMB(format, ...) printf("trace: %08X: %08X  " format "\033[0m\n", r[15] - 4, double_opcode, ##__VA_ARGS__)
 #define LDEBUG(format, ...) printf(TEAL "debug: " format "\033[0m\n", ##__VA_ARGS__)
 #define LINFO(format, ...) printf(WHITE "info: " format "\033[0m\n", ##__VA_ARGS__)
 #define LWARN(format, ...) printf(YELLOW "warning: " format "\033[0m\n", ##__VA_ARGS__)
