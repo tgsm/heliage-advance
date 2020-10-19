@@ -2,6 +2,7 @@
 #include <functional>
 #include <type_traits>
 #include <utility>
+#include "frontend/frontend.h"
 #include "logging.h"
 #include "ppu.h"
 
@@ -59,7 +60,7 @@ void PPU::EndHBlank() {
         StartVBlankLine();
         Render();
 
-        // TODO: handle frontend events
+        HandleFrontendEvents();
     } else if (vcount >= 160) {
         StartVBlankLine();
     } else {
@@ -86,7 +87,7 @@ void PPU::Render() {
             break;
     }
 
-    // TODO: display the framebuffer
+    DisplayFramebuffer(framebuffer);
     framebuffer.fill(0x0000);
 }
 

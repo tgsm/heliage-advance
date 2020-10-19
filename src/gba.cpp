@@ -8,9 +8,5 @@ GBA::GBA(Cartridge& cartridge)
 }
 
 void GBA::Run() {
-    for (u64 i = 0; ; i++) {
-        arm7.Step(true);
-        // for debugging armwrestler's drawtext function
-        // arm7.Step(i >= 196836);
-    }
+    arm7.Step(true);
 }

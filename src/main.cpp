@@ -1,8 +1,5 @@
 #include <cstdio>
-#include <filesystem>
-#include "cartridge.h"
-#include "gba.h"
-#include "logging.h"
+#include "frontend/frontend.h"
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -10,11 +7,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const std::filesystem::path cartridge_path = argv[1];
-    Cartridge cartridge(cartridge_path);
-
-    GBA gba(cartridge);
-    gba.Run();
-
-    return 0;
+#ifdef HA_FRONTEND_SDL
+    return main_SDL(argv);
+#else
+    return main_null(argv);
+#endif
 }
