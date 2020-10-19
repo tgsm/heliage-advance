@@ -61,6 +61,8 @@ u16 MMU::Read16(u32 addr) {
             switch (masked_addr) {
                 case 0x4000004:
                     return ppu.GetDISPSTAT();
+                case 0x4000130: // Keypad input
+                    return 0xFFFF & ~(1 << 3);
                 default:
                     LERROR("unrecognized read16 from IO register 0x%08X", addr);
                     return 0xFFFF;
