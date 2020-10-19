@@ -167,6 +167,9 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
         case Thumb_Instructions::ConditionalBranch:
             Thumb_ConditionalBranch(opcode);
             break;
+        case Thumb_Instructions::UnconditionalBranch:
+            Thumb_UnconditionalBranch(opcode);
+            break;
         case Thumb_Instructions::LongBranchWithLink:
             Thumb_LongBranchWithLink(opcode);
             break;
@@ -1355,4 +1358,11 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
             mmu.Write32(r[13], r[reg]);
         }
     }
+}
+
+void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
+    const s16 offset = opcode & 0x7FF;
+
+    r[15] += (offset << 1);
+    FillPipeline();
 }

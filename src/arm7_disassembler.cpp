@@ -70,6 +70,9 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         case Thumb_Instructions::ConditionalBranch:
             Thumb_DisassembleConditionalBranch(opcode);
             break;
+        case Thumb_Instructions::UnconditionalBranch:
+            Thumb_DisassembleUnconditionalBranch(opcode);
+            break;
         case Thumb_Instructions::LongBranchWithLink:
             Thumb_DisassembleLongBranchWithLink(opcode);
             break;
@@ -806,4 +809,10 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
     }
 
     LTRACE_THUMB("%s", disasm.c_str());
+}
+
+void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
+    const s16 offset = opcode & 0x7FF;
+
+    LTRACE_THUMB("B 0x%08X", r[15] + (offset << 1));
 }
