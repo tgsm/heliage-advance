@@ -1112,6 +1112,15 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
         case 0x2:
             condition = cpsr.flags.carry;
             break;
+        case 0x3:
+            condition = !cpsr.flags.carry;
+            break;
+        case 0x4:
+            condition = cpsr.flags.negative;
+            break;
+        case 0x5:
+            condition = !cpsr.flags.negative;
+            break;
         default:
             UNIMPLEMENTED_MSG("interpreter: unimplemented thumb conditional branch condition 0x%X", cond);
     }
