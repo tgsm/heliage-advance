@@ -312,266 +312,180 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
     const u16 op2 = opcode & 0xFFF;
 
-    if (op != 0xD) {
-        ASSERT(rd != 15);
-    }
+    if (op2_is_immediate) {
+        u8 rotate_amount = (op2 >> 8) & 0xF;
+        u8 imm = op2 & 0xFF;
+        u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
 
-    switch (op) {
-        case 0x0:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+        switch (op) {
+            case 0x0:
                 r[rd] = r[rn] & rotated_operand;
-            } else {
-                UNIMPLEMENTED_MSG("interpreter: unimplemented AND with register as op2");
-            }
-
-            break;
-        case 0x1:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+                break;
+            case 0x1:
                 r[rd] = r[rn] ^ rotated_operand;
-            } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                if ((shift & 0b1) == 0) {
-                    u8 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
-                    u8 rm = op2 & 0xF;
-
-                    if (!shift_amount) {
-                        r[rd] = r[rn] ^ r[rm];
-                        if (rd == 15) {
-                            FillPipeline();
-                        }
-
-                        break;
-                    }
-
-                    switch (shift_type) {
-                        case 0b00:
-                            r[rd] = r[rn] ^ (r[rm] << shift_amount);
-                            break;
-                        default:
-                            UNIMPLEMENTED_MSG("unimplemented eor shift type 0x%X", shift_type);
-                    }
-                } else if ((shift & 0b1001) == 0b0001) {
-                    UNIMPLEMENTED();
-                } else {
-                    ASSERT(false);
-                }
-            }
-
-            break;
-        case 0x2:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+                break;
+            case 0x2:
                 r[rd] = r[rn] - rotated_operand;
-            } else {
-                UNIMPLEMENTED_MSG("interpreter: unimplemented SUB with register as op2");
-            }
-
-            break;
-        case 0x4:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+                break;
+            case 0x4:
                 r[rd] = r[rn] + rotated_operand;
-            } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                if ((shift & 0b1) == 0) {
-                    u8 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
-                    u8 rm = op2 & 0xF;
-
-                    if (!shift_amount) {
-                        r[rd] = r[rn] + r[rm];
-                        if (rd == 15) {
-                            FillPipeline();
-                        }
-
-                        break;
-                    }
-
-                    switch (shift_type) {
-                        case 0b00:
-                            r[rd] = r[rn] + (r[rm] << shift_amount);
-                            break;
-                        default:
-                            UNIMPLEMENTED_MSG("unimplemented add shift type 0x%X", shift_type);
-                    }
-                } else if ((shift & 0b1001) == 0b0001) {
-                    UNIMPLEMENTED();
-                } else {
-                    ASSERT(false);
-                }
-            }
-
-            break;
-        case 0x8:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+                break;
+            case 0x6:
+                r[rd] = r[rn] - rotated_operand + cpsr.flags.carry - 1;
+                break;
+            case 0x8: {
                 u32 result = r[rn] & rotated_operand;
                 cpsr.flags.negative = (result & (1 << 31));
+                cpsr.flags.carry = (result < r[rn]);
                 cpsr.flags.zero = (result == 0);
-            } else {
-                UNIMPLEMENTED_MSG("interpreter: unimplemented TST with register as op2");
+
+                return;
             }
-
-            return;
-        case 0xA:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+            case 0xA: {
                 u32 result = r[rn] - rotated_operand;
                 cpsr.flags.negative = (result & (1 << 31));
                 cpsr.flags.carry = (result < r[rn]);
                 cpsr.flags.zero = (result == 0);
-            } else {
-                UNIMPLEMENTED_MSG("interpreter: unimplemented CMP with register as op2");
+
+                return;
             }
-
-            return;
-        case 0xC:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+            case 0xC:
                 r[rd] = r[rn] | rotated_operand;
-            } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                if ((shift & 0b1) == 0) {
-                    u8 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
-                    u8 rm = op2 & 0xF;
-
-                    if (!shift_amount) {
-                        r[rd] = r[rm];
-                        if (rd == 15) {
-                            FillPipeline();
-                        }
-
-                        break;
-                    }
-
-                    switch (shift_type) {
-                        case 0b00:
-                            r[rd] = r[rn] | (r[rm] << shift_amount);
-                            break;
-                        case 0b01:
-                            r[rd] = r[rn] | (r[rm] >> shift_amount);
-                            break;
-                        default:
-                            UNIMPLEMENTED_MSG("unimplemented mov shift type 0x%X", shift_type);
-                    }
-                } else if ((shift & 0b1001) == 0b0001) {
-                    UNIMPLEMENTED();
-                } else {
-                    ASSERT(false);
-                }
-            }
-
-            break;
-        case 0xD:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+                break;
+            case 0xD:
                 r[rd] = rotated_operand;
-                ASSERT(rd != 15);
-            } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                if ((shift & 0b1) == 0) {
-                    u8 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
-                    u8 rm = op2 & 0xF;
-
-                    if (!shift_amount) {
-                        r[rd] = r[rm];
-                        if (rd == 15) {
-                            FillPipeline();
-                        }
-
-                        break;
-                    }
-
-                    switch (shift_type) {
-                        case 0b00:
-                            r[rd] = r[rm] << shift_amount;
-                            break;
-                        case 0b01:
-                            r[rd] = r[rm] >> shift_amount;
-                            break;
-                        default:
-                            UNIMPLEMENTED_MSG("unimplemented mov shift type 0x%X", shift_type);
-                    }
-                } else if ((shift & 0b1001) == 0b0001) {
-                    UNIMPLEMENTED();
-                } else {
-                    ASSERT(false);
-                }
-            }
-
-            break;
-        case 0xF:
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
+                break;
+            case 0xF:
                 r[rd] = ~rotated_operand;
-            } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                if ((shift & 0b1) == 0) {
-                    u8 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
-                    u8 rm = op2 & 0xF;
+                break;
+            default:
+                UNIMPLEMENTED_MSG("%X", op);
+        }
 
-                    if (!shift_amount) {
-                        r[rd] = ~r[rm];
-                        if (rd == 15) {
-                            FillPipeline();
-                        }
+        if (rd == 15) {
+            FillPipeline();
+        }
+    } else {
+        u8 shift = (op2 >> 4) & 0xFF;
+        u8 rm = op2 & 0xF;
+        if ((shift & 0b1) == 0) {
+            u8 shift_amount = (shift >> 3) & 0x1F;
+            u8 shift_type = (shift >> 1) & 0b11;
 
+            if (!shift_amount) {
+                switch (op) {
+                    case 0x0:
+                        r[rd] = r[rn] & r[rm];
                         break;
-                    }
+                    case 0x1:
+                        r[rd] = r[rn] ^ r[rm];
+                        break;
+                    case 0x4:
+                        r[rd] = r[rn] + r[rm];
+                        break;
+                    case 0x5:
+                        r[rd] = r[rn] + r[rm] + cpsr.flags.carry;
+                        break;
+                    case 0x6:
+                        r[rd] = r[rn] - r[rm] + cpsr.flags.carry - 1;
+                        break;
+                    case 0x7:
+                        r[rd] = r[rm] - r[rn] + cpsr.flags.carry - 1;
+                        break;
+                    case 0xA: {
+                        u32 result = r[rn] - r[rm];
+                        cpsr.flags.negative = (result & (1 << 31));
+                        cpsr.flags.carry = (result < r[rn]);
+                        cpsr.flags.zero = (result == 0);
 
-                    switch (shift_type) {
-                        case 0b00:
-                            r[rd] = ~(r[rm] << shift_amount);
-                            break;
-                        case 0b01:
-                            r[rd] = ~(r[rm] >> shift_amount);
-                            break;
-                        default:
-                            UNIMPLEMENTED_MSG("unimplemented mov shift type 0x%X", shift_type);
+                        return;
                     }
-                } else if ((shift & 0b1001) == 0b0001) {
-                    UNIMPLEMENTED();
-                } else {
-                    ASSERT(false);
+                    case 0xB: {
+                        u32 result = r[rn] + r[rm];
+                        cpsr.flags.negative = (result & (1 << 31));
+                        cpsr.flags.carry = (result < r[rn]);
+                        cpsr.flags.zero = (result == 0);
+
+                        return;
+                    }
+                    case 0xC:
+                        r[rd] = r[rn] | r[rm];
+                        break;
+                    case 0xD:
+                        r[rd] = r[rm];
+                        break;
+                    case 0xF:
+                        r[rd] = ~r[rm];
+                        break;
+                    default:
+                        UNIMPLEMENTED_MSG("%X", op);
                 }
+                if (rd == 15) {
+                    FillPipeline();
+                }
+
+                return;
             }
 
-            break;
-        default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented data processing op 0x%X", op);
+            switch ((op << 2) | shift_type) {
+                // Case format: XXXXYY
+                // X: op, Y: shift type
+                case 0b000001: // AND w/ LSR
+                    r[rd] = r[rn] & (r[rm] >> shift_amount);
+                    break;
+                case 0b000100: // EOR w/ LSL
+                    r[rd] = r[rn] ^ (r[rm] << shift_amount);
+                    break;
+                case 0b010000: // ADD w/ LSL
+                    r[rd] = r[rn] + (r[rm] << shift_amount);
+                    break;
+                case 0b010101: // ADC w/ LSR
+                    r[rd] = r[rn] + (r[rm] >> shift_amount) + cpsr.flags.carry;
+                    break;
+                case 0b110100: // MOV w/ LSL
+                    r[rd] = (r[rm] << shift_amount);
+                    break;
+                case 0b110000: // ORR w/ LSL
+                    r[rd] = r[rn] | (r[rm] << shift_amount);
+                    break;
+                case 0b110101: // MOV w/ LSR
+                    r[rd] = (r[rm] >> shift_amount);
+                    break;
+                case 0b111010: // BIC w/ ASR:
+                    // TODO: carry flag
+                    r[rd] = (r[rm] >> shift_amount);
+                    break;
+                default:
+                    UNIMPLEMENTED_MSG("op %X, shift type %X", op, shift_type);
+            }
+
+            if (rd == 15) {
+                FillPipeline();
+            }
+        } else if ((shift & 0b1001) == 0b0001) {
+            u8 rs = (shift >> 4) & 0xF;
+            u8 shift_type = (shift >> 1) & 0b11;
+
+            // Case format: XXXXYY
+            // X: op, Y: shift type
+            switch ((op << 2) | shift_type) {
+                case 0b110100: // MOV w/ LSL
+                    r[rd] = (r[rm] << r[rs]);
+                    break;
+                case 0b110110: // MOV w/ ASR
+                    // TODO: carry flag
+                    r[rd] = (r[rm] >> r[rs]);
+                    break;
+                default:
+                    UNIMPLEMENTED_MSG("op %X, shift type %X", op, shift_type);
+            }
+
+            if (rd == 15) {
+                FillPipeline();
+            }
+        } else {
+            ASSERT(false);
+        }
     }
 
     if (set_condition_codes) {

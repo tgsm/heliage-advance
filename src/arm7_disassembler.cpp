@@ -167,6 +167,48 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
                 u8 shift = (op2 >> 4) & 0xFF;
+                u8 rm = op2 & 0xF;
+                if ((shift & 0b1) == 0) {
+                    u16 shift_amount = (shift >> 3) & 0x1F;
+                    u8 shift_type = (shift >> 1) & 0b11;
+
+                    if (!shift_amount) {
+                        disasm += fmt::format("R{}", rm);
+                    } else {
+                        disasm += fmt::format("R{}, ", rm);
+
+                        constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
+                        disasm += std::string(shift_types[shift_type]);
+
+                        disasm += fmt::format(" #{}", shift_amount);
+                    }
+                } else if ((shift & 0b1001) == 0b0001) {
+                    u8 rs = (shift >> 4) & 0xF;
+                    u8 shift_type = (shift >> 1) & 0b11;
+
+                    disasm += fmt::format("R{}, ", rm);
+
+                    constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
+                    disasm += std::string(shift_types[shift_type]);
+
+                    disasm += fmt::format(" R{}", rs);
+                } else {
+                    ASSERT(false);
+                }
+            }
+
+            break;
+        case 0x8 ... 0xB: // TST, TEQ, CMP, CMN
+            disasm += fmt::format(" R{}, ", rn);
+
+            if (op2_is_immediate) {
+                u8 rotate_amount = (op2 >> 8) & 0xF;
+                u8 imm = op2 & 0xFF;
+                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
+
+                disasm += fmt::format("#0x{:08X}", rotated_operand);
+            } else {
+                u8 shift = (op2 >> 4) & 0xFF;
                 if ((shift & 0b1) == 0) {
                     u16 shift_amount = (shift >> 3) & 0x1F;
                     u8 shift_type = (shift >> 1) & 0b11;
@@ -187,20 +229,6 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                 } else {
                     ASSERT(false);
                 }
-            }
-
-            break;
-        case 0x8 ... 0xB: // TST, TEQ, CMP, CMN
-            disasm += fmt::format(" R{}, ", rn);
-
-            if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
-
-                disasm += fmt::format("#0x{:08X}", rotated_operand);
-            } else {
-                UNIMPLEMENTED();
             }
 
             break;
