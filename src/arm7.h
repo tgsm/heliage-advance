@@ -132,6 +132,7 @@ private:
     void ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign);
     void ARM_StoreHalfwordRegister(const u32 opcode, const bool sign);
     void ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign);
+    void ARM_LoadSignedByte(const u32 opcode);
 
     void ARM_BlockDataTransfer(const u32 opcode);
     void ARM_DisassembleBlockDataTransfer(const u32 opcode);

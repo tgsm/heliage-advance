@@ -362,7 +362,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 r[rd] = ~rotated_operand;
                 break;
             default:
-                UNIMPLEMENTED_MSG("%X", op);
+                UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X", op);
         }
 
         if (rd == 15) {
@@ -421,7 +421,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                         r[rd] = ~r[rm];
                         break;
                     default:
-                        UNIMPLEMENTED_MSG("%X", op);
+                        UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with zero shift", op);
                 }
                 if (rd == 15) {
                     FillPipeline();
@@ -459,7 +459,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     r[rd] = (r[rm] >> shift_amount);
                     break;
                 default:
-                    UNIMPLEMENTED_MSG("op %X, shift type %X", op, shift_type);
+                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with shift type 0x%X", op, shift_type);
             }
 
             if (rd == 15) {
@@ -480,7 +480,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     r[rd] = (r[rm] >> r[rs]);
                     break;
                 default:
-                    UNIMPLEMENTED_MSG("op %X, shift type %X", op, shift_type);
+                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with shift type 0x%X", op, shift_type);
             }
 
             if (rd == 15) {
@@ -650,7 +650,7 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
     u16 offset = 0;
     if (offset_is_register) {
-        LERROR("interpreter: unimplemented store word with register offset");
+        LERROR("interpreter: unimplemented store byte with register offset");
     } else {
         offset = opcode & 0xFFF;
     }
@@ -666,7 +666,7 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
         mmu.Write8(address, r[rd]);
 
         if (write_back) {
-            LERROR("interpreter: unimplemented store word write-back");
+            LERROR("interpreter: unimplemented store byte write-back");
         }
     } else {
         mmu.Write8(address, r[rd]);
@@ -710,14 +710,20 @@ void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
 
     const u8 conditions = (load_from_memory << 1) | halfword;
     switch (conditions) {
+        case 0b00:
+            UNIMPLEMENTED_MSG("unimplemented SWP");
         case 0b01:
             ARM_StoreHalfwordImmediate(opcode, sign);
+            break;
+        case 0b10:
+            // Not to be confused with ARM_LoadByte
+            ARM_LoadSignedByte(opcode);
             break;
         case 0b11:
             ARM_LoadHalfwordImmediate(opcode, sign);
             break;
         default:
-            UNIMPLEMENTED_MSG("unimplemented halfword data transfer immediate conditions 0x%X", conditions);
+            UNREACHABLE();
     }
 }
 
@@ -770,8 +776,6 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
 
         r[rn] = address;
     }
-
-    ASSERT_MSG(!write_back, "unimplemented store halfword write-back");
 }
 
 void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
@@ -851,6 +855,42 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
     }
 
     ASSERT_MSG(!write_back, "unimplemented store halfword write-back");
+}
+
+void ARM7::ARM_LoadSignedByte(const u32 opcode) {
+    const bool pre_indexing = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const s8 offset_high = (opcode >> 8) & 0xF;
+    const s8 offset_low = opcode & 0xF;
+    const s8 offset = (offset_high << 8) | offset_low;
+
+    u32 address = r[rn];
+    if (pre_indexing) {
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        r[rd] = static_cast<s8>(mmu.Read8(address));
+
+        if (write_back) {
+            r[rn] = address;
+        }
+    } else {
+        r[rd] = static_cast<s8>(mmu.Read8(address));
+
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        r[rn] = address;
+    }
 }
 
 void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
