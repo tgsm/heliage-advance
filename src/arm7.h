@@ -185,4 +185,7 @@ private:
 
     void Thumb_LoadAddress(const u16 opcode);
     void Thumb_DisassembleLoadAddress(const u16 opcode);
+
+    void Thumb_AddOffsetToStackPointer(const u16 opcode);
+    void Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode);
 };

@@ -168,6 +168,9 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
         case Thumb_Instructions::LoadAddress:
             Thumb_LoadAddress(opcode);
             break;
+        case Thumb_Instructions::AddOffsetToStackPointer:
+            Thumb_AddOffsetToStackPointer(opcode);
+            break;
         case Thumb_Instructions::PushPopRegisters:
             Thumb_PushPopRegisters(opcode);
             break;
@@ -1404,4 +1407,15 @@ void ARM7::Thumb_LoadAddress(const u16 opcode) {
     const u8 imm = opcode & 0xFF;
 
     r[rd] = (imm << 2) + (load_from_sp ? r[13] : r[15]);
+}
+
+void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
+    const bool offset_is_negative = (opcode >> 7) & 0b1;
+    const u8 imm = opcode & 0x7F;
+
+    if (offset_is_negative) {
+        r[13] -= imm;
+    } else {
+        r[13] += imm;
+    }
 }

@@ -64,6 +64,9 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         case Thumb_Instructions::LoadAddress:
             Thumb_DisassembleLoadAddress(opcode);
             break;
+        case Thumb_Instructions::AddOffsetToStackPointer:
+            Thumb_DisassembleAddOffsetToStackPointer(opcode);
+            break;
         case Thumb_Instructions::PushPopRegisters:
             Thumb_DisassemblePushPopRegisters(opcode);
             break;
@@ -900,6 +903,20 @@ void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
     }
 
     disasm += fmt::format(", #0x{:X}", imm << 2);
+
+    LTRACE_THUMB("%s", disasm.c_str());
+}
+
+void ARM7::Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode) {
+    const bool offset_is_negative = (opcode >> 7) & 0b1;
+    const u8 imm = opcode & 0x7F;
+    std::string disasm;
+
+    disasm += "ADD SP, #";
+    if (offset_is_negative) {
+        disasm += "-";
+    }
+    disasm += fmt::format("0x{:02X}", imm);
 
     LTRACE_THUMB("%s", disasm.c_str());
 }
