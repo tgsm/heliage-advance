@@ -89,6 +89,9 @@ void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode)
         case ARM_Instructions::Multiply:
             ARM_Multiply(opcode);
             break;
+        case ARM_Instructions::MultiplyLong:
+            ARM_MultiplyLong(opcode);
+            break;
         case ARM_Instructions::BranchAndExchange:
             ARM_BranchAndExchange(opcode);
             break;
@@ -951,6 +954,28 @@ void ARM7::ARM_Multiply(const u32 opcode) {
     if (set_condition_codes) {
         cpsr.flags.negative = (r[rd] & (1 << 31));
         cpsr.flags.zero = (r[rd] == 0);
+    }
+}
+
+void ARM7::ARM_MultiplyLong(const u32 opcode) {
+    const bool sign = (opcode >> 22) & 0b1;
+    const bool accumulate = (opcode >> 21) & 0b1;
+    const bool set_condition_codes = (opcode >> 20) & 0b1;
+    const u8 rdhi = (opcode >> 16) & 0xF;
+    const u8 rdlo = (opcode >> 12) & 0xF;
+    const u8 rs = (opcode >> 8) & 0xF;
+    const u8 rm = opcode & 0xF;
+
+    ASSERT_MSG(!accumulate, "unimplemented multiply long with accumulate");
+    ASSERT_MSG(!sign, "unimplemented signed multiply long");
+
+    u64 result = r[rm] * r[rs];
+    r[rdlo] = result & 0xFFFFFFFF;
+    r[rdhi] = result >> 32;
+
+    if (set_condition_codes) {
+        cpsr.flags.negative = (result >> 63);
+        cpsr.flags.zero = (result == 0);
     }
 }
 

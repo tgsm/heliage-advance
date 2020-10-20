@@ -10,6 +10,9 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
         case ARM_Instructions::Multiply:
             ARM_DisassembleMultiply(opcode);
             break;
+        case ARM_Instructions::MultiplyLong:
+            ARM_DisassembleMultiplyLong(opcode);
+            break;
         case ARM_Instructions::BranchAndExchange:
             ARM_DisassembleBranchAndExchange(opcode);
             break;
@@ -571,6 +574,40 @@ void ARM7::ARM_DisassembleMultiply(const u32 opcode) {
     } else {
         disasm += fmt::format(" R{}, R{}, R{}", rd, rm, rs);
     }
+
+    LTRACE_ARM("%s", disasm.c_str());
+}
+
+void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
+    const u8 cond = (opcode >> 28) & 0xF;
+    const bool sign = (opcode >> 22) & 0b1;
+    const bool accumulate = (opcode >> 21) & 0b1;
+    const bool set_condition_codes = (opcode >> 20) & 0b1;
+    const u8 rdhi = (opcode >> 16) & 0xF;
+    const u8 rdlo = (opcode >> 12) & 0xF;
+    const u8 rs = (opcode >> 8) & 0xF;
+    const u8 rm = opcode & 0xF;
+    std::string disasm;
+
+    if (sign) {
+        disasm += "S";
+    } else {
+        disasm += "U";
+    }
+
+    if (accumulate) {
+        disasm += "MLAL";
+    } else {
+        disasm += "MULL";
+    }
+
+    disasm += GetConditionCode(cond);
+
+    if (set_condition_codes) {
+        disasm += "S";
+    }
+
+    disasm += fmt::format(" R{}, R{}, R{}, R{}", rdlo, rdhi, rm, rs);
 
     LTRACE_ARM("%s", disasm.c_str());
 }

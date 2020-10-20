@@ -139,6 +139,9 @@ private:
     void ARM_Multiply(const u32 opcode);
     void ARM_DisassembleMultiply(const u32 opcode);
 
+    void ARM_MultiplyLong(const u32 opcode);
+    void ARM_DisassembleMultiplyLong(const u32 opcode);
+
     void Thumb_PCRelativeLoad(const u16 opcode);
     void Thumb_DisassemblePCRelativeLoad(const u16 opcode);
 
