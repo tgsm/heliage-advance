@@ -1378,12 +1378,15 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
     }
 
     if (load_from_memory) {
-        if (store_lr_load_pc) {
-            UNIMPLEMENTED_MSG("unimplemented pop pc from stack");
-        }
-
         for (u8 reg : set_bits) {
             r[reg] = mmu.Read32(r[13]);
+            r[13] += 4;
+        }
+
+        if (store_lr_load_pc) {
+            r[15] = mmu.Read32(r[13]);
+            FillPipeline();
+
             r[13] += 4;
         }
     } else {
