@@ -2,6 +2,8 @@
 #include "cartridge.h"
 #include "logging.h"
 
+constexpr int TITLE_LENGTH = 12;
+
 Cartridge::Cartridge(const std::filesystem::path& cartridge_path) {
     LINFO("loading cartridge: %s", cartridge_path.string().c_str());
     LoadCartridge(cartridge_path);
@@ -20,6 +22,13 @@ void Cartridge::LoadCartridge(const std::filesystem::path& cartridge_path) {
     stream.read(reinterpret_cast<char*>(rom.data()), rom.size());
 
     LINFO("cartridge: loaded %u bytes (%u KB)", rom_size, rom_size / 1024);
+}
+
+std::string Cartridge::GetGameTitle() {
+    std::string title;
+
+    std::copy_n(rom.begin() + 0xA0, TITLE_LENGTH, std::back_inserter(title));
+    return title;
 }
 
 u8 Cartridge::Read8(u32 addr) const {

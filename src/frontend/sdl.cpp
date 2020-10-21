@@ -73,6 +73,13 @@ int main_SDL(char* argv[]) {
         return 1;
     }
 
+    std::string window_title = "heliage-advance";
+    std::string game_title = cartridge.GetGameTitle();
+    if (!game_title.empty()) {
+        window_title += " - " + game_title;
+    }
+    SDL_SetWindowTitle(window, window_title.c_str());
+
     running = true;
     while (running) {
         gba.Run();
