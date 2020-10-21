@@ -51,6 +51,7 @@ void PPU::StartHBlank() {
 
 void PPU::EndHBlank() {
     dispstat.flags.hblank = false;
+    RenderScanline();
     vcount++;
 
     if (vcount >= 228) {
@@ -60,7 +61,9 @@ void PPU::EndHBlank() {
     } else if (vcount == 160) {
         dispstat.flags.vblank = true;
         StartVBlankLine();
-        Render();
+
+        DisplayFramebuffer(framebuffer);
+        framebuffer.fill(0x0000);
 
         HandleFrontendEvents(&mmu.GetKeypad());
     } else if (vcount >= 160) {
@@ -74,13 +77,17 @@ void PPU::StartVBlankLine() {
     StartNewScanline();
 }
 
-void PPU::Render() {
+void PPU::RenderScanline() {
+    if (vcount >= 160) {
+        return;
+    }
+
     switch (dispcnt.flags.bg_mode) {
         case 4:
-            for (std::size_t i = 0; i < framebuffer.size(); i++) {
-                u8 palette_index = vram.at(i) * 2;
+            for (std::size_t i = 0; i < 240; i++) {
+                u8 palette_index = vram.at((vcount * 240) + i) * 2;
                 u16 color = ReadPRAM(palette_index);
-                framebuffer[i] = color;
+                framebuffer.at((vcount * 240) + i) = color;
             }
 
             break;
@@ -88,9 +95,6 @@ void PPU::Render() {
             LERROR("PPU: unimplemented BG mode %u", dispcnt.flags.bg_mode);
             break;
     }
-
-    DisplayFramebuffer(framebuffer);
-    framebuffer.fill(0x0000);
 }
 
 u16 PPU::ReadPRAM(u32 addr) const {

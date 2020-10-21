@@ -91,7 +91,7 @@ private:
     void StartHBlank();
     void EndHBlank();
     void StartVBlankLine();
-    void Render();
+    void RenderScanline();
 
     union {
         u16 raw = 0x0000;
