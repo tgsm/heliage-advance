@@ -1069,6 +1069,8 @@ void ARM7::Thumb_LSR(const u16 opcode) {
     const u8 rd = opcode & 0x7;
     const u32 source = r[rs];
 
+    cpsr.flags.carry = (r[rd] & 0b1);
+
     r[rd] = source >> offset;
 
     cpsr.flags.negative = r[rd] & (1 << 31);
