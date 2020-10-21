@@ -188,4 +188,7 @@ private:
 
     void Thumb_AddOffsetToStackPointer(const u16 opcode);
     void Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode);
+
+    void Thumb_LoadStoreHalfword(const u16 opcode);
+    void Thumb_DisassembleLoadStoreHalfword(const u16 opcode);
 };

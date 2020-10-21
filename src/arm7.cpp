@@ -165,6 +165,9 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
         case Thumb_Instructions::LoadStoreWithImmediateOffset:
             Thumb_LoadStoreWithImmediateOffset(opcode);
             break;
+        case Thumb_Instructions::LoadStoreHalfword:
+            Thumb_LoadStoreHalfword(opcode);
+            break;
         case Thumb_Instructions::LoadAddress:
             Thumb_LoadAddress(opcode);
             break;
@@ -1417,5 +1420,18 @@ void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
         r[13] -= imm;
     } else {
         r[13] += imm;
+    }
+}
+
+void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const u8 imm = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    if (load_from_memory) {
+        r[rd] = mmu.Read16(r[rb] + imm);
+    } else {
+        mmu.Write16(r[rb] + imm, r[rd] & 0xFFFF);
     }
 }

@@ -61,6 +61,9 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         case Thumb_Instructions::LoadStoreWithImmediateOffset:
             Thumb_DisassembleLoadStoreWithImmediateOffset(opcode);
             break;
+        case Thumb_Instructions::LoadStoreHalfword:
+            Thumb_DisassembleLoadStoreHalfword(opcode);
+            break;
         case Thumb_Instructions::LoadAddress:
             Thumb_DisassembleLoadAddress(opcode);
             break;
@@ -917,6 +920,24 @@ void ARM7::Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode) {
         disasm += "-";
     }
     disasm += fmt::format("0x{:02X}", imm);
+
+    LTRACE_THUMB("%s", disasm.c_str());
+}
+
+void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const u8 imm = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+    std::string disasm;
+
+    if (load_from_memory) {
+        disasm += "LDRH";
+    } else {
+        disasm += "STRH";
+    }
+
+    disasm += fmt::format(" R{}, [R{}, #0x{:X}]", rd, rb, imm);
 
     LTRACE_THUMB("%s", disasm.c_str());
 }
