@@ -1232,9 +1232,16 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             cpsr.flags.negative = (result & (1 << 31));
             return;
         }
-        case 0xA:
-            cpsr.flags.zero = (r[rd] == r[rs]);
+        case 0xA: {
+            u32 result = r[rd] - r[rs];
+            cpsr.flags.zero = (result == 0);
             return;
+        }
+        case 0xB: {
+            u32 result = r[rd] + r[rs];
+            cpsr.flags.zero = (result == 0);
+            return;
+        }
         case 0xC:
             r[rd] |= r[rs];
             break;
