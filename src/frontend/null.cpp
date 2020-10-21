@@ -15,7 +15,10 @@ int main_null(char* argv[]) {
     Cartridge cartridge(cartridge_path);
 
     GBA gba(cartridge);
-    gba.Run();
+
+    while (true) {
+        gba.Run();
+    }
 
     return 0;
 }
