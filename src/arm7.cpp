@@ -1391,7 +1391,7 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
         }
 
         if (store_lr_load_pc) {
-            r[15] = mmu.Read32(r[13]);
+            r[15] = mmu.Read32(r[13]) & ~0b1;
             FillPipeline();
 
             r[13] += 4;
