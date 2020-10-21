@@ -2,7 +2,7 @@
 #include "logging.h"
 
 GBA::GBA(Cartridge& cartridge)
-    : mmu(cartridge, ppu), arm7(mmu, ppu) {
+    : mmu(cartridge, keypad, ppu), arm7(mmu, ppu), ppu(mmu) {
     LINFO("powering on...");
 }
 

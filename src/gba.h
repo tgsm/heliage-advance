@@ -2,6 +2,7 @@
 
 #include "arm7.h"
 #include "cartridge.h"
+#include "keypad.h"
 #include "mmu.h"
 #include "ppu.h"
 
@@ -14,4 +15,5 @@ private:
     MMU mmu;
     ARM7 arm7;
     PPU ppu;
+    Keypad keypad;
 };

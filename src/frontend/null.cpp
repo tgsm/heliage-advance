@@ -2,7 +2,7 @@
 #include "../cartridge.h"
 #include "../gba.h"
 
-void HandleFrontendEvents() {
+void HandleFrontendEvents([[maybe_unused]] Keypad* keypad) {
 
 }
 

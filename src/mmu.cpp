@@ -1,8 +1,8 @@
 #include "logging.h"
 #include "mmu.h"
 
-MMU::MMU(Cartridge& cartridge, PPU& ppu)
-    : cartridge(cartridge), ppu(ppu) {
+MMU::MMU(Cartridge& cartridge, Keypad& keypad, PPU& ppu)
+    : cartridge(cartridge), keypad(keypad), ppu(ppu) {
     wram.fill(0x00);
 }
 
@@ -62,7 +62,7 @@ u16 MMU::Read16(u32 addr) {
                 case 0x4000004:
                     return ppu.GetDISPSTAT();
                 case 0x4000130: // Keypad input
-                    return 0xFFFF & ~(1 << 3);
+                    return keypad.GetState();
                 default:
                     LERROR("unrecognized read16 from IO register 0x%08X", addr);
                     return 0xFFFF;

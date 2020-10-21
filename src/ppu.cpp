@@ -4,9 +4,11 @@
 #include <utility>
 #include "frontend/frontend.h"
 #include "logging.h"
+#include "mmu.h"
 #include "ppu.h"
 
-PPU::PPU() {
+PPU::PPU(MMU& mmu)
+    : mmu(mmu) {
     vram.fill(0x00);
     pram.fill(0x00);
     framebuffer.fill(0x00);
@@ -60,7 +62,7 @@ void PPU::EndHBlank() {
         StartVBlankLine();
         Render();
 
-        HandleFrontendEvents();
+        HandleFrontendEvents(&mmu.GetKeypad());
     } else if (vcount >= 160) {
         StartVBlankLine();
     } else {

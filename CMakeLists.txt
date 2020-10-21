@@ -36,6 +36,7 @@ set(HEADERS
     src/arm7.h
     src/cartridge.h
     src/gba.h
+    src/keypad.h
     src/mmu.h
     src/ppu.h
     src/types.h

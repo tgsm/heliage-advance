@@ -3,6 +3,7 @@
 #include <filesystem>
 #include "../cartridge.h"
 #include "../gba.h"
+#include "../keypad.h"
 #include "../logging.h"
 
 constexpr int GBA_SCREEN_WIDTH = 240;
@@ -19,9 +20,33 @@ bool running = false;
 
 }
 
-void HandleFrontendEvents() {
+void HandleFrontendEvents(Keypad* keypad) {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
+            case SDL_KEYDOWN:
+#define KEYDOWN(k, button) if (event.key.keysym.sym == k) keypad->PressButton(Keypad::Buttons::button)
+                KEYDOWN(SDLK_UP, Up);
+                KEYDOWN(SDLK_DOWN, Down);
+                KEYDOWN(SDLK_LEFT, Left);
+                KEYDOWN(SDLK_RIGHT, Right);
+                KEYDOWN(SDLK_a, A);
+                KEYDOWN(SDLK_s, B);
+                KEYDOWN(SDLK_BACKSPACE, Select);
+                KEYDOWN(SDLK_RETURN, Start);
+#undef KEYDOWN
+                break;
+            case SDL_KEYUP:
+#define KEYUP(k, button) if (event.key.keysym.sym == k) keypad->ReleaseButton(Keypad::Buttons::button)
+                KEYUP(SDLK_UP, Up);
+                KEYUP(SDLK_DOWN, Down);
+                KEYUP(SDLK_LEFT, Left);
+                KEYUP(SDLK_RIGHT, Right);
+                KEYUP(SDLK_a, A);
+                KEYUP(SDLK_s, B);
+                KEYUP(SDLK_BACKSPACE, Select);
+                KEYUP(SDLK_RETURN, Start);
+#undef KEYUP
+                break;
             case SDL_QUIT:
                 running = false;
                 break;
