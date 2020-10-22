@@ -59,6 +59,8 @@ void DisplayFramebuffer(std::array<u16, 240 * 160>& framebuffer) {
     SDL_UpdateTexture(framebuffer_output, nullptr, framebuffer.data(), GBA_SCREEN_WIDTH * 2);
     SDL_RenderCopy(renderer, framebuffer_output, nullptr, nullptr);
     SDL_RenderPresent(renderer);
+
+    SDL_Delay(1000 / 60);
 }
 
 void Shutdown() {
