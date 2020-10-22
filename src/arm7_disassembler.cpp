@@ -58,6 +58,12 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         case Thumb_Instructions::PCRelativeLoad:
             Thumb_DisassemblePCRelativeLoad(opcode);
             break;
+        case Thumb_Instructions::LoadStoreWithRegisterOffset:
+            Thumb_DisassembleLoadStoreWithRegisterOffset(opcode);
+            break;
+        case Thumb_Instructions::LoadStoreSignExtendedByteHalfword:
+            Thumb_DisassembleLoadStoreSignExtendedByteHalfword(opcode);
+            break;
         case Thumb_Instructions::LoadStoreWithImmediateOffset:
             Thumb_DisassembleLoadStoreWithImmediateOffset(opcode);
             break;
@@ -646,6 +652,8 @@ void ARM7::Thumb_DisassembleConditionalBranch(const u16 opcode) {
     const s8 offset = opcode & 0xFF;
     std::string disasm;
 
+    ASSERT(cond != 0xF);
+
     constexpr std::array<const char*, 14> mnemonics = {
         "BEQ", "BNE", "BCS", "BCC", "BMI", "BPL", "BVS", "BVC", "BHI", "BLS", "BGE", "BLT", "BGT", "BLE" 
     };
@@ -690,10 +698,6 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
 
     pc = lr + (offset_low << 1);
     lr = r[15] | 0b1;
-
-    if (lr == 0x0800012F) {
-        std::exit(1);
-    }
 
     LDEBUG("LR=%08X", lr);
     LTRACE_DOUBLETHUMB("BX 0x%08X", pc);
@@ -886,9 +890,13 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
-    const s16 offset = opcode & 0x7FF;
+    s16 offset = (opcode & 0x7FF) << 1;
 
-    LTRACE_THUMB("B 0x%08X", r[15] + (offset << 1));
+    // Sign-extend to 16 bits
+    offset <<= 4;
+    offset >>= 4;
+
+    LTRACE_THUMB("B 0x%08X", r[15] + offset);
 }
 
 void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
@@ -938,6 +946,56 @@ void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
     }
 
     disasm += fmt::format(" R{}, [R{}, #0x{:X}]", rd, rb, imm);
+
+    LTRACE_THUMB("%s", disasm.c_str());
+}
+
+void ARM7::Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const bool transfer_byte = (opcode >> 10) & 0b1;
+    const u8 ro = (opcode >> 6) & 0x7;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+    std::string disasm;
+
+    if (load_from_memory) {
+        disasm += "LDR";
+    } else {
+        disasm += "STR";
+    }
+
+    if (transfer_byte) {
+        disasm += "B";
+    }
+
+    disasm += fmt::format(" R{}, [R{}, R{}]", rd, rb, ro);
+
+    LTRACE_THUMB("%s", disasm.c_str());
+}
+
+void ARM7::Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode) {
+    const bool h_flag = (opcode >> 11) & 0b1;
+    const bool sign_extend = (opcode >> 10) & 0b1;
+    const u8 ro = (opcode >> 6) & 0x7;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+    std::string disasm;
+
+    if (sign_extend) {
+        if (h_flag) {
+            disasm += "LDSH";
+        } else {
+            disasm += "LDSB";
+        }
+    } else {
+        if (h_flag) {
+            disasm += "LDRH";
+        } else {
+            disasm += "STRH";
+        }
+    }
+
+    disasm += fmt::format(" R{}, [R{}, R{}]", rd, rb, ro);
 
     LTRACE_THUMB("%s", disasm.c_str());
 }

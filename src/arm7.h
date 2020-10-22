@@ -175,7 +175,10 @@ private:
 
     void Thumb_LoadStoreWithImmediateOffset(const u16 opcode);
     void Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode);
+    void Thumb_StoreByteWithImmediateOffset(const u16 opcode);
+    void Thumb_LoadByteWithImmediateOffset(const u16 opcode);
     void Thumb_StoreWordWithImmediateOffset(const u16 opcode);
+    void Thumb_LoadWordWithImmediateOffset(const u16 opcode);
 
     void Thumb_PushPopRegisters(const u16 opcode);
     void Thumb_DisassemblePushPopRegisters(const u16 opcode);
@@ -191,4 +194,10 @@ private:
 
     void Thumb_LoadStoreHalfword(const u16 opcode);
     void Thumb_DisassembleLoadStoreHalfword(const u16 opcode);
+
+    void Thumb_LoadStoreWithRegisterOffset(const u16 opcode);
+    void Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode);
+
+    void Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode);
+    void Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode);
 };

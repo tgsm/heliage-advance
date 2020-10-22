@@ -162,6 +162,12 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
         case Thumb_Instructions::PCRelativeLoad:
             Thumb_PCRelativeLoad(opcode);
             break;
+        case Thumb_Instructions::LoadStoreWithRegisterOffset:
+            Thumb_LoadStoreWithRegisterOffset(opcode);
+            break;
+        case Thumb_Instructions::LoadStoreSignExtendedByteHalfword:
+            Thumb_LoadStoreSignExtendedByteHalfword(opcode);
+            break;
         case Thumb_Instructions::LoadStoreWithImmediateOffset:
             Thumb_LoadStoreWithImmediateOffset(opcode);
             break;
@@ -1116,6 +1122,9 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
         case 0x5:
             condition = !cpsr.flags.negative;
             break;
+        case 0xB:
+            condition = (cpsr.flags.negative != cpsr.flags.overflow);
+            break;
         default:
             UNIMPLEMENTED_MSG("interpreter: unimplemented thumb conditional branch condition 0x%X", cond);
     }
@@ -1226,12 +1235,18 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
 
             r[rd] <<= r[rs];
             break;
+        case 0x7:
+            r[rd] = Shift_RotateRight(r[rd], r[rs]);
+            break;
         case 0x8: {
             u32 result = r[rd] & r[rs];
             cpsr.flags.zero = (result == 0);
             cpsr.flags.negative = (result & (1 << 31));
             return;
         }
+        case 0x9:
+            r[rd] = -r[rs];
+            break;
         case 0xA: {
             u32 result = r[rd] - r[rs];
             cpsr.flags.zero = (result == 0);
@@ -1244,6 +1259,9 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
         }
         case 0xC:
             r[rd] |= r[rs];
+            break;
+        case 0xD:
+            r[rd] *= r[rs];
             break;
         case 0xE:
             r[rd] &= ~r[rs];
@@ -1302,6 +1320,15 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
     ASSERT(!(op == 0x3 && h1));
 
     switch (op) {
+        case 0x0:
+            r[h1 ? rd_hd + 8 : rd_hd] += r[h2 ? rs_hs + 8 : rs_hs];
+            // If we're setting R15 through here, we need to halfword align it
+            // and refill the pipeline.
+            if (h1 && rd_hd + 8 == 15) {
+                r[15] &= ~0b1;
+                FillPipeline();
+            }
+            break;
         case 0x2:
             r[h1 ? rd_hd + 8 : rd_hd] = r[h2 ? rs_hs + 8 : rs_hs];
             // If we're setting R15 through here, we need to halfword align it
@@ -1320,10 +1347,13 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
                 r[15] = r[rs_hs] & ~0x1;
             }
             FillPipeline();
-            break;
+            return;
         default:
             UNIMPLEMENTED_MSG("interpreter: unimplemented thumb hi reg op 0x%X", op);
     }
+
+    cpsr.flags.negative = (r[h1 ? rd_hd + 8 : rd_hd] & (1 << 31));
+    cpsr.flags.zero = (r[h1 ? rd_hd + 8 : rd_hd] == 0);
 }
 
 void ARM7::Thumb_LoadStoreWithImmediateOffset(const u16 opcode) {
@@ -1332,17 +1362,33 @@ void ARM7::Thumb_LoadStoreWithImmediateOffset(const u16 opcode) {
 
     if (transfer_byte) {
         if (load_from_memory) {
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb load byte with immediate offset");
+            Thumb_LoadByteWithImmediateOffset(opcode);
         } else {
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb store byte with immediate offset");
+            Thumb_StoreByteWithImmediateOffset(opcode);
         }
     } else {
         if (load_from_memory) {
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb load word with immediate offset");
+            Thumb_LoadWordWithImmediateOffset(opcode);
         } else {
             Thumb_StoreWordWithImmediateOffset(opcode);
         }
     }
+}
+
+void ARM7::Thumb_StoreByteWithImmediateOffset(const u16 opcode) {
+    const u8 offset = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    mmu.Write8(r[rd], r[rb] + offset);
+}
+
+void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
+    const u8 offset = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    r[rd] = mmu.Read8(r[rb] + offset);
 }
 
 void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
@@ -1351,6 +1397,14 @@ void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
     const u8 rd = opcode & 0x7;
 
     mmu.Write32(r[rd], r[rb] + offset);
+}
+
+void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
+    const u8 offset = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    r[rd] = mmu.Read32(r[rb] + offset);
 }
 
 void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
@@ -1369,19 +1423,22 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
         }
     }
 
-    ASSERT_MSG(!set_bits.empty(), "unimplemented pop/push with no registers");
-
     if (set_bits.empty()) {
         if (!store_lr_load_pc) {
             return;
         }
 
         if (load_from_memory) {
-            UNIMPLEMENTED_MSG("unimplemented pop pc from stack with no registers");
+            r[15] = mmu.Read32(r[13]) & ~0b1;
+            FillPipeline();
+
+            r[13] += 4;
         } else {
             mmu.Write32(r[13], r[14]);
             r[13] -= 4;
         }
+
+        return;
     }
 
     if (load_from_memory) {
@@ -1410,9 +1467,13 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
 }
 
 void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
-    const s16 offset = opcode & 0x7FF;
+    s16 offset = (opcode & 0x7FF) << 1;
 
-    r[15] += (offset << 1);
+    // Sign-extend to 16 bits
+    offset <<= 4;
+    offset >>= 4;
+
+    r[15] += offset;
     FillPipeline();
 }
 
@@ -1445,5 +1506,67 @@ void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
         r[rd] = mmu.Read16(r[rb] + imm);
     } else {
         mmu.Write16(r[rb] + imm, r[rd] & 0xFFFF);
+    }
+}
+
+void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const bool transfer_byte = (opcode >> 10) & 0b1;
+    const u8 ro = (opcode >> 6) & 0x7;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    if (load_from_memory) {
+        if (transfer_byte) {
+            r[rd] = mmu.Read8(r[rb] + r[ro]);
+        } else {
+            r[rd] = mmu.Read32(r[rb] + r[ro]);
+        }
+    } else {
+        if (transfer_byte) {
+            mmu.Write8(r[rb] + r[ro], r[rd] & 0xFF);
+        } else {
+            mmu.Write32(r[rb] + r[ro], r[rd] & 0xFF);
+        }
+    }
+}
+
+void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
+    const bool h_flag = (opcode >> 11) & 0b1;
+    const bool sign_extend = (opcode >> 10) & 0b1;
+    const u8 ro = (opcode >> 6) & 0x7;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    if (sign_extend) {
+        if (h_flag) {
+            r[rd] = mmu.Read16(r[rb] + r[ro]);
+
+            // Set bits 31-16 of Rd to what's in bit 15.
+            if (!(r[rd] & (1 << 15))) {
+                return;
+            }
+
+            for (u8 i = 16; i < 31; i++) {
+                r[rd] |= (1 << i);
+            }
+        } else {
+            r[rd] = mmu.Read8(r[rb] + r[ro]);
+
+            // Set bits 31-8 of Rd to what's in bit 15.
+            if (!(r[rd] & (1 << 7))) {
+                return;
+            }
+
+            for (u8 i = 8; i < 31; i++) {
+                r[rd] |= (1 << i);
+            }
+        }
+    } else {
+        if (h_flag) {
+            r[rd] = mmu.Read16(r[rb] + r[ro]);
+        } else {
+            UNIMPLEMENTED_MSG("unimplemented thumb store (not sign-extended) halfword");
+        }
     }
 }
