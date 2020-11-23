@@ -290,20 +290,6 @@ bool ARM7::CheckConditionCode(const u8 cond) {
     }
 }
 
-void ARM7::ARM_Branch(const u32 opcode) {
-    const bool link = (opcode >> 24) & 0b1;
-    s32 offset = (opcode & 0xFFFFFF) << 2;
-
-    offset <<= 6;
-    offset >>= 6;
-
-    if (link) {
-        SetLR(GetPC() - 4);
-    }
-
-    SetPC(GetPC() + offset);
-}
-
 void ARM7::ARM_DataProcessing(const u32 opcode) {
     if ((opcode & 0x0FBF0FFF) == 0x010F0000) {
         ARM_MRS(opcode);
@@ -530,6 +516,305 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     }
 }
 
+void ARM7::ARM_MRS(const u32 opcode) {
+    const bool source_is_spsr = (opcode >> 22) & 0b1;
+    const u8 rd = (opcode >> 12) & 0xF;
+
+    if (source_is_spsr) {
+        SetRegister(rd, spsr.raw);
+    } else {
+        SetRegister(rd, cpsr.raw);
+    }
+}
+
+void ARM7::ARM_MSR(const u32 opcode, const bool flag_bits_only) {
+    // TODO: from starbreeze:
+    // "you might have to add some things to your msr later. (e.g. you can't change
+    // control bits in User mode, there's a mask field that controls access to the
+    // individual PSR fields that the ARM7TDMI reference doesn't tell you about, ...)"
+    //
+    // "msr won't be the only way to set a PSR. There's mode changes and PSR transfers
+    // in block/single data transfers, CPU exceptions and some data processing instructions."
+
+    const bool destination_is_spsr = (opcode >> 22) & 0b1;
+
+    if (flag_bits_only) {
+        const bool operand_is_immediate = (opcode >> 25) & 0b1;
+        const u16 source_operand = opcode & 0xFFF;
+
+        if (operand_is_immediate) {
+            const u8 rotate_amount = (source_operand >> 8) & 0xF;
+            const u8 immediate = source_operand & 0xFF;
+
+            if (destination_is_spsr) {
+                spsr.raw &= ~0xFFFFFF00;
+                spsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
+            } else {
+                cpsr.raw &= ~0xFFFFFF00;
+                cpsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
+            }
+        } else {
+            const u8 rm = source_operand & 0xF;
+            if (destination_is_spsr) {
+                spsr.raw &= ~0xFFFFFF00;
+                spsr.raw = (GetRegister(rm) & 0xFFFFFF00);
+            } else {
+                cpsr.raw &= ~0xFFFFFF00;
+                cpsr.raw = (GetRegister(rm) & 0xFFFFFF00);
+            }
+        }
+    } else {
+        const u8 rm = opcode & 0xF;
+        if (destination_is_spsr) {
+            spsr.raw = GetRegister(rm);
+        } else {
+            cpsr.raw = GetRegister(rm);
+        }
+    }
+}
+
+void ARM7::ARM_Multiply(const u32 opcode) {
+    const bool accumulate = (opcode >> 21) & 0b1;
+    const bool set_condition_codes = (opcode >> 20) & 0b1;
+    const u8 rd = (opcode >> 16) & 0xF;
+    const u8 rn = (opcode >> 12) & 0xF;
+    const u8 rs = (opcode >> 8) & 0xF;
+    const u8 rm = opcode & 0xF;
+
+    SetRegister(rd, GetRegister(rm) * GetRegister(rs));
+
+    if (accumulate) {
+        SetRegister(rd, GetRegister(rd) + GetRegister(rn));
+    }
+
+    if (set_condition_codes) {
+        cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+        cpsr.flags.zero = (GetRegister(rd) == 0);
+    }
+}
+
+void ARM7::ARM_MultiplyLong(const u32 opcode) {
+    const bool sign = (opcode >> 22) & 0b1;
+    const bool accumulate = (opcode >> 21) & 0b1;
+    const bool set_condition_codes = (opcode >> 20) & 0b1;
+    const u8 rdhi = (opcode >> 16) & 0xF;
+    const u8 rdlo = (opcode >> 12) & 0xF;
+    const u8 rs = (opcode >> 8) & 0xF;
+    const u8 rm = opcode & 0xF;
+
+    ASSERT_MSG(!sign, "unimplemented signed multiply long");
+
+    u64 result = GetRegister(rm) * GetRegister(rs);
+    if (accumulate) {
+        result += ((static_cast<u64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
+    }
+    SetRegister(rdlo, result & 0xFFFFFFFF);
+    SetRegister(rdhi, result >> 32);
+
+    if (set_condition_codes) {
+        cpsr.flags.negative = (result >> 63);
+        cpsr.flags.zero = (result == 0);
+    }
+}
+
+void ARM7::ARM_BranchAndExchange(const u32 opcode) {
+    const u8 rn = opcode & 0xF;
+
+    // If bit 0 of Rn is set, we switch to THUMB mode. Else, we switch to ARM mode.
+    cpsr.flags.thumb_mode = GetRegister(rn) & 0b1;
+    LDEBUG("thumb: %u", cpsr.flags.thumb_mode);
+
+    SetPC(GetRegister(rn) & ~0b1);
+}
+
+void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
+    const bool load_from_memory = (opcode >> 20) & 0b1;
+    const bool sign = (opcode >> 6) & 0b1;
+    const bool halfword = (opcode >> 5) & 0b1;
+
+    const u8 conditions = (load_from_memory << 1) | halfword;
+    switch (conditions) {
+        case 0b01:
+            ARM_StoreHalfwordRegister(opcode, sign);
+            break;
+        default:
+            UNIMPLEMENTED_MSG("unimplemented halfword data transfer register conditions 0x%X", conditions);
+    }
+}
+
+void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
+    const bool pre_indexing = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const u8 rm = opcode & 0xF;
+
+    u32 address = GetRegister(rn);
+    if (pre_indexing) {
+        if (add_offset_to_base) {
+            address += GetRegister(rm);
+        } else {
+            address -= GetRegister(rm);
+        }
+
+        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
+
+        if (write_back) {
+            SetRegister(rn, address);
+        }
+    } else {
+        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
+        if (add_offset_to_base) {
+            address += GetRegister(rm);
+        } else {
+            address -= GetRegister(rm);
+        }
+
+        SetRegister(rn, address);
+    }
+}
+
+void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
+    const bool load_from_memory = (opcode >> 20) & 0b1;
+    const bool sign = (opcode >> 6) & 0b1;
+    const bool halfword = (opcode >> 5) & 0b1;
+
+    const u8 conditions = (load_from_memory << 1) | halfword;
+    switch (conditions) {
+        case 0b00:
+            UNIMPLEMENTED_MSG("unimplemented SWP");
+        case 0b01:
+            ARM_StoreHalfwordImmediate(opcode, sign);
+            break;
+        case 0b10:
+            // Not to be confused with ARM_LoadByte
+            ARM_LoadSignedByte(opcode);
+            break;
+        case 0b11:
+            ARM_LoadHalfwordImmediate(opcode, sign);
+            break;
+        default:
+            UNREACHABLE();
+    }
+}
+
+void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
+    const bool pre_indexing = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const u8 offset_high = (opcode >> 8) & 0xF;
+    const u8 offset_low = opcode & 0xF;
+    const u8 offset = (offset_high << 8) | offset_low;
+
+    u32 address = GetRegister(rn);
+    if (pre_indexing) {
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        if (sign) {
+            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
+        } else {
+            SetRegister(rd, mmu.Read16(address));
+        }
+
+        if (write_back) {
+            SetRegister(rn, address);
+        }
+    } else {
+        if (sign) {
+            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
+        } else {
+            SetRegister(rd, mmu.Read16(address));
+        }
+
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        SetRegister(rn, address);
+    }
+}
+
+void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
+    const bool pre_indexing = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const u8 offset_high = (opcode >> 8) & 0xF;
+    const u8 offset_low = opcode & 0xF;
+    const u8 offset = (offset_high << 8) | offset_low;
+
+    u32 address = GetRegister(rn);
+    u16 value = GetRegister(rd) & 0xFFFF;
+    if (pre_indexing) {
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        mmu.Write16(address, sign ? static_cast<s16>(value) : value);
+
+        if (write_back) {
+            SetRegister(rn, address);
+        }
+    } else {
+        mmu.Write16(address, sign ? static_cast<s16>(value) : value);
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        SetRegister(rn, address);
+    }
+}
+
+void ARM7::ARM_LoadSignedByte(const u32 opcode) {
+    const bool pre_indexing = (opcode >> 24) & 0b1;
+    const bool add_offset_to_base = (opcode >> 23) & 0b1;
+    const bool write_back = (opcode >> 21) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const s8 offset_high = (opcode >> 8) & 0xF;
+    const s8 offset_low = opcode & 0xF;
+    const s8 offset = (offset_high << 8) | offset_low;
+
+    u32 address = GetRegister(rn);
+    if (pre_indexing) {
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
+
+        if (write_back) {
+            SetRegister(rn, address);
+        }
+    } else {
+        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
+
+        if (add_offset_to_base) {
+            address += offset;
+        } else {
+            address -= offset;
+        }
+
+        SetRegister(rn, address);
+    }
+}
+
 void ARM7::ARM_SingleDataTransfer(const u32 opcode) {
     const u16 operation = (opcode >> 20) & 0b101;
     switch (operation) {
@@ -743,261 +1028,6 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
     }
 }
 
-void ARM7::ARM_MRS(const u32 opcode) {
-    const bool source_is_spsr = (opcode >> 22) & 0b1;
-    const u8 rd = (opcode >> 12) & 0xF;
-
-    if (source_is_spsr) {
-        SetRegister(rd, spsr.raw);
-    } else {
-        SetRegister(rd, cpsr.raw);
-    }
-}
-
-void ARM7::ARM_MSR(const u32 opcode, const bool flag_bits_only) {
-    // TODO: from starbreeze:
-    // "you might have to add some things to your msr later. (e.g. you can't change
-    // control bits in User mode, there's a mask field that controls access to the
-    // individual PSR fields that the ARM7TDMI reference doesn't tell you about, ...)"
-    //
-    // "msr won't be the only way to set a PSR. There's mode changes and PSR transfers
-    // in block/single data transfers, CPU exceptions and some data processing instructions."
-
-    const bool destination_is_spsr = (opcode >> 22) & 0b1;
-
-    if (flag_bits_only) {
-        const bool operand_is_immediate = (opcode >> 25) & 0b1;
-        const u16 source_operand = opcode & 0xFFF;
-
-        if (operand_is_immediate) {
-            const u8 rotate_amount = (source_operand >> 8) & 0xF;
-            const u8 immediate = source_operand & 0xFF;
-
-            if (destination_is_spsr) {
-                spsr.raw &= ~0xFFFFFF00;
-                spsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
-            } else {
-                cpsr.raw &= ~0xFFFFFF00;
-                cpsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
-            }
-        } else {
-            const u8 rm = source_operand & 0xF;
-            if (destination_is_spsr) {
-                spsr.raw &= ~0xFFFFFF00;
-                spsr.raw = (GetRegister(rm) & 0xFFFFFF00);
-            } else {
-                cpsr.raw &= ~0xFFFFFF00;
-                cpsr.raw = (GetRegister(rm) & 0xFFFFFF00);
-            }
-        }
-    } else {
-        const u8 rm = opcode & 0xF;
-        if (destination_is_spsr) {
-            spsr.raw = GetRegister(rm);
-        } else {
-            cpsr.raw = GetRegister(rm);
-        }
-    }
-}
-
-void ARM7::ARM_BranchAndExchange(const u32 opcode) {
-    const u8 rn = opcode & 0xF;
-
-    // If bit 0 of Rn is set, we switch to THUMB mode. Else, we switch to ARM mode.
-    cpsr.flags.thumb_mode = GetRegister(rn) & 0b1;
-    LDEBUG("thumb: %u", cpsr.flags.thumb_mode);
-
-    SetPC(GetRegister(rn) & ~0b1);
-}
-
-void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const bool sign = (opcode >> 6) & 0b1;
-    const bool halfword = (opcode >> 5) & 0b1;
-
-    const u8 conditions = (load_from_memory << 1) | halfword;
-    switch (conditions) {
-        case 0b00:
-            UNIMPLEMENTED_MSG("unimplemented SWP");
-        case 0b01:
-            ARM_StoreHalfwordImmediate(opcode, sign);
-            break;
-        case 0b10:
-            // Not to be confused with ARM_LoadByte
-            ARM_LoadSignedByte(opcode);
-            break;
-        case 0b11:
-            ARM_LoadHalfwordImmediate(opcode, sign);
-            break;
-        default:
-            UNREACHABLE();
-    }
-}
-
-void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const bool sign = (opcode >> 6) & 0b1;
-    const bool halfword = (opcode >> 5) & 0b1;
-
-    const u8 conditions = (load_from_memory << 1) | halfword;
-    switch (conditions) {
-        case 0b01:
-            ARM_StoreHalfwordRegister(opcode, sign);
-            break;
-        default:
-            UNIMPLEMENTED_MSG("unimplemented halfword data transfer register conditions 0x%X", conditions);
-    }
-}
-
-void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 offset_high = (opcode >> 8) & 0xF;
-    const u8 offset_low = opcode & 0xF;
-    const u8 offset = (offset_high << 8) | offset_low;
-
-    u32 address = GetRegister(rn);
-    u16 value = GetRegister(rd) & 0xFFFF;
-    if (pre_indexing) {
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        mmu.Write16(address, sign ? static_cast<s16>(value) : value);
-
-        if (write_back) {
-            SetRegister(rn, address);
-        }
-    } else {
-        mmu.Write16(address, sign ? static_cast<s16>(value) : value);
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        SetRegister(rn, address);
-    }
-}
-
-void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 rm = opcode & 0xF;
-
-    u32 address = GetRegister(rn);
-    if (pre_indexing) {
-        if (add_offset_to_base) {
-            address += GetRegister(rm);
-        } else {
-            address -= GetRegister(rm);
-        }
-
-        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
-
-        if (write_back) {
-            SetRegister(rn, address);
-        }
-    } else {
-        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
-        if (add_offset_to_base) {
-            address += GetRegister(rm);
-        } else {
-            address -= GetRegister(rm);
-        }
-
-        SetRegister(rn, address);
-    }
-}
-
-void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 offset_high = (opcode >> 8) & 0xF;
-    const u8 offset_low = opcode & 0xF;
-    const u8 offset = (offset_high << 8) | offset_low;
-
-    u32 address = GetRegister(rn);
-    if (pre_indexing) {
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        if (sign) {
-            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
-        } else {
-            SetRegister(rd, mmu.Read16(address));
-        }
-
-        if (write_back) {
-            SetRegister(rn, address);
-        }
-    } else {
-        if (sign) {
-            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
-        } else {
-            SetRegister(rd, mmu.Read16(address));
-        }
-
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        SetRegister(rn, address);
-    }
-}
-
-void ARM7::ARM_LoadSignedByte(const u32 opcode) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const s8 offset_high = (opcode >> 8) & 0xF;
-    const s8 offset_low = opcode & 0xF;
-    const s8 offset = (offset_high << 8) | offset_low;
-
-    u32 address = GetRegister(rn);
-    if (pre_indexing) {
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
-
-        if (write_back) {
-            SetRegister(rn, address);
-        }
-    } else {
-        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
-
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        SetRegister(rn, address);
-    }
-}
-
 void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     const bool pre_indexing = (opcode >> 24) & 0b1;
     const bool add_offset_to_base = (opcode >> 23) & 0b1;
@@ -1076,56 +1106,25 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     }
 }
 
-void ARM7::ARM_Multiply(const u32 opcode) {
-    const bool accumulate = (opcode >> 21) & 0b1;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rd = (opcode >> 16) & 0xF;
-    const u8 rn = (opcode >> 12) & 0xF;
-    const u8 rs = (opcode >> 8) & 0xF;
-    const u8 rm = opcode & 0xF;
+void ARM7::ARM_Branch(const u32 opcode) {
+    const bool link = (opcode >> 24) & 0b1;
+    s32 offset = (opcode & 0xFFFFFF) << 2;
 
-    SetRegister(rd, GetRegister(rm) * GetRegister(rs));
+    offset <<= 6;
+    offset >>= 6;
 
-    if (accumulate) {
-        SetRegister(rd, GetRegister(rd) + GetRegister(rn));
+    if (link) {
+        SetLR(GetPC() - 4);
     }
 
-    if (set_condition_codes) {
-        cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
-        cpsr.flags.zero = (GetRegister(rd) == 0);
-    }
+    SetPC(GetPC() + offset);
 }
 
-void ARM7::ARM_MultiplyLong(const u32 opcode) {
-    const bool sign = (opcode >> 22) & 0b1;
-    const bool accumulate = (opcode >> 21) & 0b1;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rdhi = (opcode >> 16) & 0xF;
-    const u8 rdlo = (opcode >> 12) & 0xF;
-    const u8 rs = (opcode >> 8) & 0xF;
-    const u8 rm = opcode & 0xF;
+// TODO: ARM coprocessor data transfer
 
-    ASSERT_MSG(!sign, "unimplemented signed multiply long");
+// TODO: ARM coprocessor data operation
 
-    u64 result = GetRegister(rm) * GetRegister(rs);
-    if (accumulate) {
-        result += ((static_cast<u64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
-    }
-    SetRegister(rdlo, result & 0xFFFFFFFF);
-    SetRegister(rdhi, result >> 32);
-
-    if (set_condition_codes) {
-        cpsr.flags.negative = (result >> 63);
-        cpsr.flags.zero = (result == 0);
-    }
-}
-
-void ARM7::Thumb_PCRelativeLoad(const u16 opcode) {
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 imm = opcode & 0xFF;
-
-    SetRegister(rd, mmu.Read32((GetPC() + (imm << 2)) & ~0x3));
-}
+// TODO: ARM coprocessor register transfer
 
 void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
     const u8 op = (opcode >> 11) & 0x3;
@@ -1187,39 +1186,28 @@ void ARM7::Thumb_ASR(const u16 opcode) {
     LWARN("verify ASR's carry flag");
 }
 
-void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
-    const u8 cond = (opcode >> 8) & 0xF;
-    const s8 offset = opcode & 0xFF;
+void ARM7::Thumb_AddSubtract(const u16 opcode) {
+    const bool operand_is_immediate = (opcode >> 10) & 0b1;
+    const bool subtracting = (opcode >> 9) & 0b1;
+    const u8 rn_or_immediate = (opcode >> 6) & 0x7;
+    const u8 rs = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
 
-    bool condition = false;
-    switch (cond) {
-        case 0x0:
-            condition = cpsr.flags.zero;
-            break;
-        case 0x1:
-            condition = !cpsr.flags.zero;
-            break;
-        case 0x2:
-            condition = cpsr.flags.carry;
-            break;
-        case 0x3:
-            condition = !cpsr.flags.carry;
-            break;
-        case 0x4:
-            condition = cpsr.flags.negative;
-            break;
-        case 0x5:
-            condition = !cpsr.flags.negative;
-            break;
-        case 0xB:
-            condition = (cpsr.flags.negative != cpsr.flags.overflow);
-            break;
-        default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb conditional branch condition 0x%X", cond);
-    }
-
-    if (condition) {
-        SetPC(GetPC() + (offset << 1));
+    if (subtracting) {
+        if (operand_is_immediate) {
+            cpsr.flags.carry = GetRegister(rs) < rn_or_immediate;
+            SetRegister(rd, GetRegister(rs) - rn_or_immediate);
+        } else {
+            cpsr.flags.carry = GetRegister(rs) < GetRegister(rn_or_immediate);
+            SetRegister(rd, GetRegister(rs) - GetRegister(rn_or_immediate));
+        }
+    } else {
+        LWARN("need to implement the carry flag for thumb add");
+        if (operand_is_immediate) {
+            SetRegister(rd, GetRegister(rs) + rn_or_immediate);
+        } else {
+            SetRegister(rd, GetRegister(rs) + GetRegister(rn_or_immediate));
+        }
     }
 }
 
@@ -1248,58 +1236,6 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
 
     cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
     cpsr.flags.zero = (GetRegister(rd) == 0);
-}
-
-void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
-    const u16 next_opcode = mmu.Read16(GetPC() - 2);
-    const u16 offset = opcode & 0x7FF;
-    const u16 next_offset = next_opcode & 0x7FF;
-
-    u32 lr = GetLR();
-    u32 pc = GetPC();
-
-    lr = pc + (offset << 12);
-
-    pc = lr + (next_offset << 1);
-    lr = GetPC() | 0b1;
-
-    SetLR(lr);
-
-    // FIXME: something is going wrong with this calculation.
-    // For example, sometimes we should be jumping to 0x08000210,
-    // but we're actually jumping to 0x08800210, which is way out
-    // of bounds, in terms of cartridge size. No good.
-    if (pc & (1 << 23)) {
-        LERROR("thumb long branch with link reset bit 23 hack");
-        pc &= ~(1 << 23);
-    }
-
-    SetPC(pc);
-}
-
-void ARM7::Thumb_AddSubtract(const u16 opcode) {
-    const bool operand_is_immediate = (opcode >> 10) & 0b1;
-    const bool subtracting = (opcode >> 9) & 0b1;
-    const u8 rn_or_immediate = (opcode >> 6) & 0x7;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
-
-    if (subtracting) {
-        if (operand_is_immediate) {
-            cpsr.flags.carry = GetRegister(rs) < rn_or_immediate;
-            SetRegister(rd, GetRegister(rs) - rn_or_immediate);
-        } else {
-            cpsr.flags.carry = GetRegister(rs) < GetRegister(rn_or_immediate);
-            SetRegister(rd, GetRegister(rs) - GetRegister(rn_or_immediate));
-        }
-    } else {
-        LWARN("need to implement the carry flag for thumb add");
-        if (operand_is_immediate) {
-            SetRegister(rd, GetRegister(rs) + rn_or_immediate);
-        } else {
-            SetRegister(rd, GetRegister(rs) + GetRegister(rn_or_immediate));
-        }
-    }
 }
 
 void ARM7::Thumb_ALUOperations(const u16 opcode) {
@@ -1378,39 +1314,6 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
     cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
-void ARM7::Thumb_MultipleLoadStore(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 rb = (opcode >> 8) & 0x7;
-    const u8 rlist = opcode & 0xFF;
-
-    // Go through `rlist`'s 8 bits, and write down which bits are set. This tells
-    // us which registers we need to load/store.
-    // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
-    // to R1, and so on.
-    std::vector<u8> set_bits;
-    for (u8 i = 0; i < 8; i++) {
-        if (rlist & (1 << i)) {
-            set_bits.push_back(i);
-        }
-    }
-
-    if (set_bits.empty()) {
-        return;
-    }
-
-    if (load_from_memory) {
-        for (u8 i : set_bits) {
-            SetRegister(i, mmu.Read32(GetRegister(rb)));
-            SetRegister(rb, GetRegister(rb) + 4);
-        }
-    } else {
-        for (u8 reg : set_bits) {
-            mmu.Write32(GetRegister(rb), GetRegister(reg));
-            SetRegister(rb, GetRegister(rb) + 4);
-        }
-    }
-}
-
 void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
     const u8 op = (opcode >> 8) & 0x3;
     const bool h1 = (opcode >> 7) & 0b1;
@@ -1457,152 +1360,11 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
     cpsr.flags.zero = (GetRegister(rd_hd) == 0);
 }
 
-void ARM7::Thumb_LoadStoreWithImmediateOffset(const u16 opcode) {
-    const bool transfer_byte = (opcode >> 12) & 0b1;
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-
-    if (transfer_byte) {
-        if (load_from_memory) {
-            Thumb_LoadByteWithImmediateOffset(opcode);
-        } else {
-            Thumb_StoreByteWithImmediateOffset(opcode);
-        }
-    } else {
-        if (load_from_memory) {
-            Thumb_LoadWordWithImmediateOffset(opcode);
-        } else {
-            Thumb_StoreWordWithImmediateOffset(opcode);
-        }
-    }
-}
-
-void ARM7::Thumb_StoreByteWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
-
-    mmu.Write8(GetRegister(rd), GetRegister(rb) + offset);
-}
-
-void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
-
-    SetRegister(rd, mmu.Read8(GetRegister(rb) + offset));
-}
-
-void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
-
-    mmu.Write32(GetRegister(rd), GetRegister(rb) + offset);
-}
-
-void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
-
-    SetRegister(rd, mmu.Read32(GetRegister(rb) + offset));
-}
-
-void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const bool store_lr_load_pc = (opcode >> 8) & 0b1;
-    const u8 rlist = opcode & 0xFF;
-
-    // Go through `rlist`'s 8 bits, and write down which bits are set. This tells
-    // us which registers we need to load/store.
-    // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
-    // to R1, and so on.
-    std::vector<u8> set_bits;
-    for (u8 i = 0; i < 8; i++) {
-        if (rlist & (1 << i)) {
-            set_bits.push_back(i);
-        }
-    }
-
-    if (set_bits.empty()) {
-        if (!store_lr_load_pc) {
-            return;
-        }
-
-        if (load_from_memory) {
-            SetPC(mmu.Read32(GetSP()) & ~0b1);
-            SetSP(GetSP() + 4);
-        } else {
-            mmu.Write32(GetSP(), GetLR());
-            SetSP(GetSP() - 4);
-        }
-
-        return;
-    }
-
-    if (load_from_memory) {
-        for (u8 reg : set_bits) {
-            SetRegister(reg, mmu.Read32(GetSP()));
-            SetSP(GetSP() + 4);
-        }
-
-        if (store_lr_load_pc) {
-            SetPC(mmu.Read32(GetSP()) & ~0b1);
-            SetSP(GetSP() + 4);
-        }
-    } else {
-        if (store_lr_load_pc) {
-            SetSP(GetSP() - 4);
-            mmu.Write32(GetSP(), GetLR());
-        }
-
-        for (u8 reg : set_bits | std::views::reverse) {
-            SetSP(GetSP() - 4);
-            mmu.Write32(GetSP(), GetRegister(reg));
-        }
-    }
-}
-
-void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
-    s16 offset = (opcode & 0x7FF) << 1;
-
-    // Sign-extend to 16 bits
-    offset <<= 4;
-    offset >>= 4;
-
-    SetPC(GetPC() + offset);
-}
-
-void ARM7::Thumb_LoadAddress(const u16 opcode) {
-    const bool load_from_sp = (opcode >> 11) & 0b1;
+void ARM7::Thumb_PCRelativeLoad(const u16 opcode) {
     const u8 rd = (opcode >> 8) & 0x7;
     const u8 imm = opcode & 0xFF;
 
-    SetRegister(rd, (imm << 2) + (load_from_sp ? GetSP() : GetPC()));
-}
-
-void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
-    const bool offset_is_negative = (opcode >> 7) & 0b1;
-    const u8 imm = opcode & 0x7F;
-
-    if (offset_is_negative) {
-        SetSP(GetSP() - imm);
-    } else {
-        SetSP(GetSP() + imm);
-    }
-}
-
-void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 imm = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
-
-    if (load_from_memory) {
-        SetRegister(rd, mmu.Read16(GetRegister(rb) + imm));
-    } else {
-        mmu.Write16(GetRegister(rb) + imm, static_cast<u16>(GetRegister(rd)));
-    }
+    SetRegister(rd, mmu.Read32((GetPC() + (imm << 2)) & ~0x3));
 }
 
 void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
@@ -1665,4 +1427,252 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
             UNIMPLEMENTED_MSG("unimplemented thumb store (not sign-extended) halfword");
         }
     }
+}
+
+void ARM7::Thumb_LoadStoreWithImmediateOffset(const u16 opcode) {
+    const bool transfer_byte = (opcode >> 12) & 0b1;
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+
+    if (transfer_byte) {
+        if (load_from_memory) {
+            Thumb_LoadByteWithImmediateOffset(opcode);
+        } else {
+            Thumb_StoreByteWithImmediateOffset(opcode);
+        }
+    } else {
+        if (load_from_memory) {
+            Thumb_LoadWordWithImmediateOffset(opcode);
+        } else {
+            Thumb_StoreWordWithImmediateOffset(opcode);
+        }
+    }
+}
+
+void ARM7::Thumb_StoreByteWithImmediateOffset(const u16 opcode) {
+    const u8 offset = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    mmu.Write8(GetRegister(rd), GetRegister(rb) + offset);
+}
+
+void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
+    const u8 offset = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    SetRegister(rd, mmu.Read8(GetRegister(rb) + offset));
+}
+
+void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
+    const u8 offset = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    mmu.Write32(GetRegister(rd), GetRegister(rb) + offset);
+}
+
+void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
+    const u8 offset = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    SetRegister(rd, mmu.Read32(GetRegister(rb) + offset));
+}
+
+void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const u8 imm = (opcode >> 6) & 0x1F;
+    const u8 rb = (opcode >> 3) & 0x7;
+    const u8 rd = opcode & 0x7;
+
+    if (load_from_memory) {
+        SetRegister(rd, mmu.Read16(GetRegister(rb) + imm));
+    } else {
+        mmu.Write16(GetRegister(rb) + imm, static_cast<u16>(GetRegister(rd)));
+    }
+}
+
+// TODO: Thumb SP-relative load/store
+
+void ARM7::Thumb_LoadAddress(const u16 opcode) {
+    const bool load_from_sp = (opcode >> 11) & 0b1;
+    const u8 rd = (opcode >> 8) & 0x7;
+    const u8 imm = opcode & 0xFF;
+
+    SetRegister(rd, (imm << 2) + (load_from_sp ? GetSP() : GetPC()));
+}
+
+void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
+    const bool offset_is_negative = (opcode >> 7) & 0b1;
+    const u8 imm = opcode & 0x7F;
+
+    if (offset_is_negative) {
+        SetSP(GetSP() - imm);
+    } else {
+        SetSP(GetSP() + imm);
+    }
+}
+
+void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const bool store_lr_load_pc = (opcode >> 8) & 0b1;
+    const u8 rlist = opcode & 0xFF;
+
+    // Go through `rlist`'s 8 bits, and write down which bits are set. This tells
+    // us which registers we need to load/store.
+    // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
+    // to R1, and so on.
+    std::vector<u8> set_bits;
+    for (u8 i = 0; i < 8; i++) {
+        if (rlist & (1 << i)) {
+            set_bits.push_back(i);
+        }
+    }
+
+    if (set_bits.empty()) {
+        if (!store_lr_load_pc) {
+            return;
+        }
+
+        if (load_from_memory) {
+            SetPC(mmu.Read32(GetSP()) & ~0b1);
+            SetSP(GetSP() + 4);
+        } else {
+            mmu.Write32(GetSP(), GetLR());
+            SetSP(GetSP() - 4);
+        }
+
+        return;
+    }
+
+    if (load_from_memory) {
+        for (u8 reg : set_bits) {
+            SetRegister(reg, mmu.Read32(GetSP()));
+            SetSP(GetSP() + 4);
+        }
+
+        if (store_lr_load_pc) {
+            SetPC(mmu.Read32(GetSP()) & ~0b1);
+            SetSP(GetSP() + 4);
+        }
+    } else {
+        if (store_lr_load_pc) {
+            SetSP(GetSP() - 4);
+            mmu.Write32(GetSP(), GetLR());
+        }
+
+        for (u8 reg : set_bits | std::views::reverse) {
+            SetSP(GetSP() - 4);
+            mmu.Write32(GetSP(), GetRegister(reg));
+        }
+    }
+}
+
+void ARM7::Thumb_MultipleLoadStore(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const u8 rb = (opcode >> 8) & 0x7;
+    const u8 rlist = opcode & 0xFF;
+
+    // Go through `rlist`'s 8 bits, and write down which bits are set. This tells
+    // us which registers we need to load/store.
+    // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
+    // to R1, and so on.
+    std::vector<u8> set_bits;
+    for (u8 i = 0; i < 8; i++) {
+        if (rlist & (1 << i)) {
+            set_bits.push_back(i);
+        }
+    }
+
+    if (set_bits.empty()) {
+        return;
+    }
+
+    if (load_from_memory) {
+        for (u8 i : set_bits) {
+            SetRegister(i, mmu.Read32(GetRegister(rb)));
+            SetRegister(rb, GetRegister(rb) + 4);
+        }
+    } else {
+        for (u8 reg : set_bits) {
+            mmu.Write32(GetRegister(rb), GetRegister(reg));
+            SetRegister(rb, GetRegister(rb) + 4);
+        }
+    }
+}
+
+void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
+    const u8 cond = (opcode >> 8) & 0xF;
+    const s8 offset = opcode & 0xFF;
+
+    bool condition = false;
+    switch (cond) {
+        case 0x0:
+            condition = cpsr.flags.zero;
+            break;
+        case 0x1:
+            condition = !cpsr.flags.zero;
+            break;
+        case 0x2:
+            condition = cpsr.flags.carry;
+            break;
+        case 0x3:
+            condition = !cpsr.flags.carry;
+            break;
+        case 0x4:
+            condition = cpsr.flags.negative;
+            break;
+        case 0x5:
+            condition = !cpsr.flags.negative;
+            break;
+        case 0xB:
+            condition = (cpsr.flags.negative != cpsr.flags.overflow);
+            break;
+        default:
+            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb conditional branch condition 0x%X", cond);
+    }
+
+    if (condition) {
+        SetPC(GetPC() + (offset << 1));
+    }
+}
+
+// TODO: Thumb-mode software interrupt
+
+void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
+    s16 offset = (opcode & 0x7FF) << 1;
+
+    // Sign-extend to 16 bits
+    offset <<= 4;
+    offset >>= 4;
+
+    SetPC(GetPC() + offset);
+}
+
+void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
+    const u16 next_opcode = mmu.Read16(GetPC() - 2);
+    const u16 offset = opcode & 0x7FF;
+    const u16 next_offset = next_opcode & 0x7FF;
+
+    u32 lr = GetLR();
+    u32 pc = GetPC();
+
+    lr = pc + (offset << 12);
+
+    pc = lr + (next_offset << 1);
+    lr = GetPC() | 0b1;
+
+    SetLR(lr);
+
+    // FIXME: something is going wrong with this calculation.
+    // For example, sometimes we should be jumping to 0x08000210,
+    // but we're actually jumping to 0x08800210, which is way out
+    // of bounds, in terms of cartridge size. No good.
+    if (pc & (1 << 23)) {
+        LERROR("thumb long branch with link reset bit 23 hack");
+        pc &= ~(1 << 23);
+    }
+
+    SetPC(pc);
 }

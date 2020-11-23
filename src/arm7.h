@@ -1,7 +1,7 @@
 #pragma once
 
-#include "mmu.h"
 #include "logging.h"
+#include "mmu.h"
 #include "types.h"
 
 class ARM7 {
@@ -251,11 +251,34 @@ private:
     MMU& mmu;
     PPU& ppu;
 
-    void ARM_Branch(const u32 opcode);
-    void ARM_DisassembleBranch(const u32 opcode);
-
     void ARM_DataProcessing(const u32 opcode);
     void ARM_DisassembleDataProcessing(const u32 opcode);
+
+    void ARM_MRS(const u32 opcode);
+    void ARM_DisassembleMRS(const u32 opcode);
+    void ARM_MSR(const u32 opcode, const bool flag_bits_onl);
+    void ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only);
+
+    void ARM_Multiply(const u32 opcode);
+    void ARM_DisassembleMultiply(const u32 opcode);
+
+    void ARM_MultiplyLong(const u32 opcode);
+    void ARM_DisassembleMultiplyLong(const u32 opcode);
+
+    // TODO: Single data swap
+
+    void ARM_BranchAndExchange(const u32 opcode);
+    void ARM_DisassembleBranchAndExchange(const u32 opcode);
+
+    void ARM_HalfwordDataTransferRegister(const u32 opcode);
+    void ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode);
+    void ARM_StoreHalfwordRegister(const u32 opcode, const bool sign);
+
+    void ARM_HalfwordDataTransferImmediate(const u32 opcode);
+    void ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode);
+    void ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign);
+    void ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign);
+    void ARM_LoadSignedByte(const u32 opcode);
 
     void ARM_SingleDataTransfer(const u32 opcode);
     void ARM_DisassembleSingleDataTransfer(const u32 opcode);
@@ -264,38 +287,21 @@ private:
     void ARM_LoadByte(const u32 opcode);
     void ARM_StoreByte(const u32 opcode);
 
-    void ARM_MRS(const u32 opcode);
-    void ARM_DisassembleMRS(const u32 opcode);
-    void ARM_MSR(const u32 opcode, const bool flag_bits_onl);
-    void ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only);
-
-    void ARM_BranchAndExchange(const u32 opcode);
-    void ARM_DisassembleBranchAndExchange(const u32 opcode);
-
-    void ARM_HalfwordDataTransferImmediate(const u32 opcode);
-    void ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode);
-    void ARM_HalfwordDataTransferRegister(const u32 opcode);
-    void ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode);
-    void ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign);
-    void ARM_StoreHalfwordRegister(const u32 opcode, const bool sign);
-    void ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign);
-    void ARM_LoadSignedByte(const u32 opcode);
-
     void ARM_BlockDataTransfer(const u32 opcode);
     void ARM_DisassembleBlockDataTransfer(const u32 opcode);
 
-    void ARM_Multiply(const u32 opcode);
-    void ARM_DisassembleMultiply(const u32 opcode);
+    void ARM_Branch(const u32 opcode);
+    void ARM_DisassembleBranch(const u32 opcode);
+    
+    // TODO: Coprocessor data transfer
 
-    void ARM_MultiplyLong(const u32 opcode);
-    void ARM_DisassembleMultiplyLong(const u32 opcode);
+    // TODO: Coprocessor data operation
+
+    // TODO: Coprocessor register transfer
 
     void ARM_SoftwareInterrupt(const u32 opcode);
     void ARM_DisassembleSoftwareInterrupt(const u32 opcode);
     void ARM_SWI_Div();
-
-    void Thumb_PCRelativeLoad(const u16 opcode);
-    void Thumb_DisassemblePCRelativeLoad(const u16 opcode);
 
     void Thumb_MoveShiftedRegister(const u16 opcode);
     void Thumb_DisassembleMoveShiftedRegister(const u16 opcode);
@@ -303,26 +309,26 @@ private:
     void Thumb_LSR(const u16 opcode);
     void Thumb_ASR(const u16 opcode);
 
-    void Thumb_ConditionalBranch(const u16 opcode);
-    void Thumb_DisassembleConditionalBranch(const u16 opcode);
+    void Thumb_AddSubtract(const u16 opcode);
+    void Thumb_DisassembleAddSubtract(const u16 opcode);
 
     void Thumb_MoveCompareAddSubtractImmediate(const u16 opcode);
     void Thumb_DisassembleMoveCompareAddSubtractImmediate(const u16 opcode);
 
-    void Thumb_LongBranchWithLink(const u16 opcode);
-    void Thumb_DisassembleLongBranchWithLink(const u16 opcode);
-
-    void Thumb_AddSubtract(const u16 opcode);
-    void Thumb_DisassembleAddSubtract(const u16 opcode);
-
     void Thumb_ALUOperations(const u16 opcode);
     void Thumb_DisassembleALUOperations(const u16 opcode);
 
-    void Thumb_MultipleLoadStore(const u16 opcode);
-    void Thumb_DisassembleMultipleLoadStore(const u16 opcode);
-
     void Thumb_HiRegisterOperationsBranchExchange(const u16 opcode);
     void Thumb_DisassembleHiRegisterOperationsBranchExchange(const u16 opcode);
+
+    void Thumb_PCRelativeLoad(const u16 opcode);
+    void Thumb_DisassemblePCRelativeLoad(const u16 opcode);
+
+    void Thumb_LoadStoreWithRegisterOffset(const u16 opcode);
+    void Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode);
+
+    void Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode);
+    void Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode);
 
     void Thumb_LoadStoreWithImmediateOffset(const u16 opcode);
     void Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode);
@@ -331,11 +337,10 @@ private:
     void Thumb_StoreWordWithImmediateOffset(const u16 opcode);
     void Thumb_LoadWordWithImmediateOffset(const u16 opcode);
 
-    void Thumb_PushPopRegisters(const u16 opcode);
-    void Thumb_DisassemblePushPopRegisters(const u16 opcode);
+    void Thumb_LoadStoreHalfword(const u16 opcode);
+    void Thumb_DisassembleLoadStoreHalfword(const u16 opcode);
 
-    void Thumb_UnconditionalBranch(const u16 opcode);
-    void Thumb_DisassembleUnconditionalBranch(const u16 opcode);
+    // TODO: SP-relative load/store
 
     void Thumb_LoadAddress(const u16 opcode);
     void Thumb_DisassembleLoadAddress(const u16 opcode);
@@ -343,12 +348,20 @@ private:
     void Thumb_AddOffsetToStackPointer(const u16 opcode);
     void Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode);
 
-    void Thumb_LoadStoreHalfword(const u16 opcode);
-    void Thumb_DisassembleLoadStoreHalfword(const u16 opcode);
+    void Thumb_PushPopRegisters(const u16 opcode);
+    void Thumb_DisassemblePushPopRegisters(const u16 opcode);
 
-    void Thumb_LoadStoreWithRegisterOffset(const u16 opcode);
-    void Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode);
+    void Thumb_MultipleLoadStore(const u16 opcode);
+    void Thumb_DisassembleMultipleLoadStore(const u16 opcode);
 
-    void Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode);
-    void Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode);
+    void Thumb_ConditionalBranch(const u16 opcode);
+    void Thumb_DisassembleConditionalBranch(const u16 opcode);
+
+    // TODO: thumb-mode software interrupt
+
+    void Thumb_UnconditionalBranch(const u16 opcode);
+    void Thumb_DisassembleUnconditionalBranch(const u16 opcode);
+
+    void Thumb_LongBranchWithLink(const u16 opcode);
+    void Thumb_DisassembleLongBranchWithLink(const u16 opcode);
 };
