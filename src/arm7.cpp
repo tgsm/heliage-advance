@@ -8,19 +8,20 @@ ARM7::ARM7(MMU& mmu, PPU& ppu)
     : mmu(mmu), ppu(ppu) {
     // Initialize the pipeline and registers
     pipeline.fill(0);
-    r.fill(0);
-
-    r[0] = 0x00000CA5;
-    // stack pointer
-    r[13] = 0x03007F00;
-    // link register
-    r[14] = 0x08000000;
-    // program counter
-    r[15] = 0x08000000;
+    gpr.fill(0);
+    fiq_r.fill(0);
+    svc_r.fill(0);
+    abt_r.fill(0);
+    irq_r.fill(0);
+    und_r.fill(0);
 
     cpsr.flags.processor_mode = ProcessorMode::System;
 
-    FillPipeline();
+    // taken from no$gba
+    SetRegister(0, 0x00000CA5);
+    SetSP(0x03007F00);
+    SetLR(0x08000000);
+    SetPC(0x08000000);
 }
 
 void ARM7::Step(bool dump_registers) {
@@ -29,8 +30,8 @@ void ARM7::Step(bool dump_registers) {
         const u16 opcode = pipeline[0];
 
         pipeline[0] = pipeline[1];
-        r[15] += 2;
-        pipeline[1] = mmu.Read16(r[15]);
+        gpr[15] += 2;
+        pipeline[1] = mmu.Read16(gpr[15]);
 
         const Thumb_Instructions instr = DecodeThumbInstruction(opcode);
         if (dump_registers)
@@ -41,8 +42,8 @@ void ARM7::Step(bool dump_registers) {
         const u32 opcode = pipeline[0];
 
         pipeline[0] = pipeline[1];
-        r[15] += 4;
-        pipeline[1] = mmu.Read32(r[15]);
+        gpr[15] += 4;
+        pipeline[1] = mmu.Read32(gpr[15]);
 
         const ARM_Instructions instr = DecodeARMInstruction(opcode);
         if (dump_registers)
@@ -203,26 +204,26 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
 }
 
 void ARM7::DumpRegisters() {
-    printf("r0: %08X r1: %08X r2: %08X r3: %08X\n", r[0], r[1], r[2], r[3]);
-    printf("r4: %08X r5: %08X r6: %08X r7: %08X\n", r[4], r[5], r[6], r[7]);
-    printf("r8: %08X r9: %08X r10:%08X r11:%08X\n", r[8], r[9], r[10], r[11]);
-    printf("r12:%08X r13:%08X lr: %08X pc: %08X\n", r[12], r[13], r[14], cpsr.flags.thumb_mode ? r[15] - 4 : r[15] - 8);
+    printf("r0: %08X r1: %08X r2: %08X r3: %08X\n", GetRegister(0), GetRegister(1), GetRegister(2), GetRegister(3));
+    printf("r4: %08X r5: %08X r6: %08X r7: %08X\n", GetRegister(4), GetRegister(5), GetRegister(6), GetRegister(7));
+    printf("r8: %08X r9: %08X r10:%08X r11:%08X\n", GetRegister(8), GetRegister(9), GetRegister(10), GetRegister(11));
+    printf("r12:%08X sp: %08X lr: %08X pc: %08X\n", GetRegister(12), GetSP(), GetLR(), cpsr.flags.thumb_mode ? GetPC() - 4 : GetPC() - 8);
     printf("cpsr:%08X\n", cpsr.raw);
 }
 
 void ARM7::FillPipeline() {
     if (cpsr.flags.thumb_mode) {
-        pipeline[0] = mmu.Read16(r[15]);
-        // LDEBUG("r15=%08X p0=%04X", r[15], pipeline[0]);
-        r[15] += 2;
-        pipeline[1] = mmu.Read16(r[15]);
-        // LDEBUG("r15=%08X p1=%04X", r[15], pipeline[1]);
+        pipeline[0] = mmu.Read16(gpr[15]);
+        // LDEBUG("r15=%08X p0=%04X", gpr[15], pipeline[0]);
+        gpr[15] += 2;
+        pipeline[1] = mmu.Read16(gpr[15]);
+        // LDEBUG("r15=%08X p1=%04X", gpr[15], pipeline[1]);
     } else {
-        pipeline[0] = mmu.Read32(r[15]);
-        // LDEBUG("r15=%08X p0=%08X", r[15], pipeline[0]);
-        r[15] += 4;
-        pipeline[1] = mmu.Read32(r[15]);
-        // LDEBUG("r15=%08X p1=%08X", r[15], pipeline[1]);
+        pipeline[0] = mmu.Read32(gpr[15]);
+        // LDEBUG("r15=%08X p0=%08X", gpr[15], pipeline[0]);
+        gpr[15] += 4;
+        pipeline[1] = mmu.Read32(gpr[15]);
+        // LDEBUG("r15=%08X p1=%08X", gpr[15], pipeline[1]);
     }
 }
 
@@ -250,12 +251,6 @@ u32 ARM7::Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount)
 }
 
 bool ARM7::CheckConditionCode(const u8 cond) {
-    ASSERT(cond != 0xF);
-
-    if (cond == 0xE) {
-        return true;
-    }
-
     switch (cond) {
         case 0x0:
             return cpsr.flags.zero;
@@ -285,7 +280,9 @@ bool ARM7::CheckConditionCode(const u8 cond) {
             return (!cpsr.flags.zero && (cpsr.flags.negative == cpsr.flags.overflow));
         case 0xD:
             return (cpsr.flags.zero || (cpsr.flags.negative != cpsr.flags.overflow));
-        default:
+        case 0xE:
+            return true;
+        default: // cond is 0xF
             UNREACHABLE();
     }
 }
@@ -298,16 +295,16 @@ void ARM7::ARM_Branch(const u32 opcode) {
     offset >>= 6;
 
     if (link) {
-        r[14] = r[15] - 4;
+        SetLR(GetPC() - 4);
     }
 
-    r[15] += offset;
-    FillPipeline();
+    SetPC(GetPC() + offset);
 }
 
 void ARM7::ARM_DataProcessing(const u32 opcode) {
     if ((opcode & 0x0FBF0FFF) == 0x010F0000) {
-        UNIMPLEMENTED_MSG("interpreter: implement MRS");
+        ARM_MRS(opcode);
+        return;
     }
 
     if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
@@ -334,51 +331,74 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
         switch (op) {
             case 0x0:
-                r[rd] = r[rn] & rotated_operand;
+                SetRegister(rd, GetRegister(rn) & rotated_operand);
                 break;
             case 0x1:
-                r[rd] = r[rn] ^ rotated_operand;
+                SetRegister(rd, GetRegister(rn) ^ rotated_operand);
                 break;
-            case 0x2:
-                r[rd] = r[rn] - rotated_operand;
+            case 0x2: {
+                u32 result = GetRegister(rn) - rotated_operand;
+                cpsr.flags.carry = (result <= GetRegister(rn));
+                if (set_condition_codes) {
+                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (~rotated_operand ^ result)) >> 31;
+                }
+                SetRegister(rd, result);
                 break;
-            case 0x4:
-                r[rd] = r[rn] + rotated_operand;
+            }
+            case 0x4: {
+                u32 result = GetRegister(rn) + rotated_operand;
+                cpsr.flags.carry = (result < GetRegister(rn));
+                if (set_condition_codes) {
+                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (rotated_operand ^ result)) >> 31;
+                }
+                SetRegister(rd, result);
                 break;
-            case 0x6:
-                r[rd] = r[rn] - rotated_operand + cpsr.flags.carry - 1;
+            }
+            case 0x5: {
+                u32 result = GetRegister(rn) + rotated_operand + cpsr.flags.carry;
+                cpsr.flags.carry = (result < GetRegister(rn));
+                if (set_condition_codes) {
+                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (rotated_operand ^ result)) >> 31;
+                }
+                SetRegister(rd, result);
                 break;
+            }
+            case 0x6: {
+                u32 result = GetRegister(rn) - rotated_operand + cpsr.flags.carry - 1;
+                cpsr.flags.carry = (result <= GetRegister(rn));
+                if (set_condition_codes) {
+                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (~rotated_operand ^ result)) >> 31;
+                }
+                SetRegister(rd, result);
+                break;
+            }
             case 0x8: {
-                u32 result = r[rn] & rotated_operand;
+                u32 result = GetRegister(rn) & rotated_operand;
                 cpsr.flags.negative = (result & (1 << 31));
-                cpsr.flags.carry = (result < r[rn]);
+                cpsr.flags.carry = (result < GetRegister(rn));
                 cpsr.flags.zero = (result == 0);
 
                 return;
             }
             case 0xA: {
-                u32 result = r[rn] - rotated_operand;
+                u32 result = GetRegister(rn) - rotated_operand;
                 cpsr.flags.negative = (result & (1 << 31));
-                cpsr.flags.carry = (result < r[rn]);
+                cpsr.flags.carry = (result < GetRegister(rn));
                 cpsr.flags.zero = (result == 0);
 
                 return;
             }
             case 0xC:
-                r[rd] = r[rn] | rotated_operand;
+                SetRegister(rd, GetRegister(rn) | rotated_operand);
                 break;
             case 0xD:
-                r[rd] = rotated_operand;
+                SetRegister(rd, rotated_operand);
                 break;
             case 0xF:
-                r[rd] = ~rotated_operand;
+                SetRegister(rd, ~rotated_operand);
                 break;
             default:
                 UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X", op);
-        }
-
-        if (rd == 15) {
-            FillPipeline();
         }
     } else {
         u8 shift = (op2 >> 4) & 0xFF;
@@ -390,53 +410,53 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             if (!shift_amount) {
                 switch (op) {
                     case 0x0:
-                        r[rd] = r[rn] & r[rm];
+                        SetRegister(rd, GetRegister(rn) & GetRegister(rm));
                         break;
                     case 0x1:
-                        r[rd] = r[rn] ^ r[rm];
+                        SetRegister(rd, GetRegister(rn) ^ GetRegister(rm));
+                        break;
+                    case 0x2:
+                        SetRegister(rd, GetRegister(rn) - GetRegister(rm));
                         break;
                     case 0x4:
-                        r[rd] = r[rn] + r[rm];
+                        SetRegister(rd, GetRegister(rn) + GetRegister(rm));
                         break;
                     case 0x5:
-                        r[rd] = r[rn] + r[rm] + cpsr.flags.carry;
+                        SetRegister(rd, GetRegister(rn) + GetRegister(rm) + cpsr.flags.carry);
                         break;
                     case 0x6:
-                        r[rd] = r[rn] - r[rm] + cpsr.flags.carry - 1;
+                        SetRegister(rd, GetRegister(rn) - GetRegister(rm) + cpsr.flags.carry - 1);
                         break;
                     case 0x7:
-                        r[rd] = r[rm] - r[rn] + cpsr.flags.carry - 1;
+                        SetRegister(rd, GetRegister(rm) - GetRegister(rn) + cpsr.flags.carry - 1);
                         break;
                     case 0xA: {
-                        u32 result = r[rn] - r[rm];
+                        u32 result = GetRegister(rn) - GetRegister(rm);
                         cpsr.flags.negative = (result & (1 << 31));
-                        cpsr.flags.carry = (result < r[rn]);
+                        cpsr.flags.carry = (result < GetRegister(rn));
                         cpsr.flags.zero = (result == 0);
 
                         return;
                     }
                     case 0xB: {
-                        u32 result = r[rn] + r[rm];
+                        u32 result = GetRegister(rn) + GetRegister(rm);
                         cpsr.flags.negative = (result & (1 << 31));
-                        cpsr.flags.carry = (result < r[rn]);
+                        cpsr.flags.carry = (result < GetRegister(rn));
                         cpsr.flags.zero = (result == 0);
 
                         return;
                     }
                     case 0xC:
-                        r[rd] = r[rn] | r[rm];
+                        SetRegister(rd, GetRegister(rn) | GetRegister(rm));
                         break;
                     case 0xD:
-                        r[rd] = r[rm];
+                        SetRegister(rd, GetRegister(rm));
                         break;
                     case 0xF:
-                        r[rd] = ~r[rm];
+                        SetRegister(rd, ~GetRegister(rm));
                         break;
                     default:
                         UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with zero shift", op);
-                }
-                if (rd == 15) {
-                    FillPipeline();
                 }
 
                 return;
@@ -446,36 +466,38 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 // Case format: XXXXYY
                 // X: op, Y: shift type
                 case 0b000001: // AND w/ LSR
-                    r[rd] = r[rn] & (r[rm] >> shift_amount);
+                    SetRegister(rd, GetRegister(rn) & (GetRegister(rm) >> shift_amount));
                     break;
                 case 0b000100: // EOR w/ LSL
-                    r[rd] = r[rn] ^ (r[rm] << shift_amount);
+                    SetRegister(rd, GetRegister(rn) ^ (GetRegister(rm) << shift_amount));
                     break;
                 case 0b010000: // ADD w/ LSL
-                    r[rd] = r[rn] + (r[rm] << shift_amount);
+                    SetRegister(rd, GetRegister(rn) + (GetRegister(rm) << shift_amount));
                     break;
                 case 0b010101: // ADC w/ LSR
-                    r[rd] = r[rn] + (r[rm] >> shift_amount) + cpsr.flags.carry;
+                    SetRegister(rd, GetRegister(rn) + (GetRegister(rm) >> shift_amount) + cpsr.flags.carry);
                     break;
                 case 0b110100: // MOV w/ LSL
-                    r[rd] = (r[rm] << shift_amount);
+                    SetRegister(rd, (GetRegister(rm) << shift_amount));
                     break;
                 case 0b110000: // ORR w/ LSL
-                    r[rd] = r[rn] | (r[rm] << shift_amount);
+                    SetRegister(rd, GetRegister(rn) | (GetRegister(rm) << shift_amount));
+                    break;
+                case 0b110011: // ORR w/ ROR
+                    SetRegister(rd, GetRegister(rn) | Shift_RotateRight(GetRegister(rm), shift_amount));
                     break;
                 case 0b110101: // MOV w/ LSR
-                    r[rd] = (r[rm] >> shift_amount);
+                    SetRegister(rd, (GetRegister(rm) >> shift_amount));
+                    break;
+                case 0b110111: // MOV w/ ROR
+                    SetRegister(rd, Shift_RotateRight(GetRegister(rm), shift_amount));
                     break;
                 case 0b111010: // BIC w/ ASR:
                     // TODO: carry flag
-                    r[rd] = (r[rm] >> shift_amount);
+                    SetRegister(rd, (GetRegister(rm) >> shift_amount));
                     break;
                 default:
                     UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with shift type 0x%X", op, shift_type);
-            }
-
-            if (rd == 15) {
-                FillPipeline();
             }
         } else if ((shift & 0b1001) == 0b0001) {
             u8 rs = (shift >> 4) & 0xF;
@@ -485,18 +507,14 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             // X: op, Y: shift type
             switch ((op << 2) | shift_type) {
                 case 0b110100: // MOV w/ LSL
-                    r[rd] = (r[rm] << r[rs]);
+                    SetRegister(rd, GetRegister(rm) << GetRegister(rs));
                     break;
                 case 0b110110: // MOV w/ ASR
                     // TODO: carry flag
-                    r[rd] = (r[rm] >> r[rs]);
+                    SetRegister(rd, GetRegister(rm) >> GetRegister(rs));
                     break;
                 default:
                     UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with shift type 0x%X", op, shift_type);
-            }
-
-            if (rd == 15) {
-                FillPipeline();
             }
         } else {
             ASSERT(false);
@@ -504,8 +522,8 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     }
 
     if (set_condition_codes) {
-        cpsr.flags.negative = (r[rd] & (1 << 31));
-        cpsr.flags.zero = (r[rd] == 0);
+        cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+        cpsr.flags.zero = (GetRegister(rd) == 0);
     }
 }
 
@@ -536,14 +554,43 @@ void ARM7::ARM_LoadWord(const u32 opcode) {
     const bool write_back = (opcode >> 21) & 0b1;
     const u8 rn = (opcode >> 16) & 0xF;
     const u8 rd = (opcode >> 12) & 0xF;
-    u16 offset = 0;
+    s16 offset = 0;
     if (offset_is_register) {
-        LERROR("interpreter: unimplemented load word with register offset");
+        u8 shift = (opcode >> 4) & 0xFF;
+        u8 rm = opcode & 0xF;
+
+        if ((shift & 0b1) == 0) {
+            u8 shift_amount = (shift >> 3) & 0x1F;
+            u8 shift_type = (shift >> 1) & 0b11;
+
+            if (!shift_amount) {
+                offset = (add_offset_to_base) ? GetRegister(rm) : -GetRegister(rm);
+            } else {
+                switch (shift_type) {
+                    case 0b00:
+                        offset = (GetRegister(rm) << shift_amount);
+                        break;
+                    case 0b01:
+                        offset = (GetRegister(rm) >> shift_amount);
+                        break;
+                    default:
+                        UNIMPLEMENTED();
+                }
+            }
+
+            if (!add_offset_to_base) {
+                offset = -offset;
+            }
+        } else if ((shift & 0b1001) == 0b0001) {
+            UNIMPLEMENTED();
+        } else {
+            ASSERT(false);
+        }
     } else {
         offset = opcode & 0xFFF;
     }
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (add_before_transfer) {
         if (add_offset_to_base) {
             address += offset;
@@ -552,14 +599,14 @@ void ARM7::ARM_LoadWord(const u32 opcode) {
         }
 
         address &= ~0x3; // Word align
-        r[rd] = mmu.Read32(address);
+        SetRegister(rd, mmu.Read32(address));
 
         if (write_back) {
-            LERROR("interpreter: unimplemented load word write-back");
+            SetRegister(rn, address);
         }
     } else {
         address &= ~0x3; // Word align
-        r[rd] = mmu.Read32(address);
+        SetRegister(rd, mmu.Read32(address));
 
         if (add_offset_to_base) {
             address += offset;
@@ -567,7 +614,7 @@ void ARM7::ARM_LoadWord(const u32 opcode) {
             address -= offset;
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
     }
 }
 
@@ -580,12 +627,12 @@ void ARM7::ARM_StoreWord(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
     u16 offset = 0;
     if (offset_is_register) {
-        LERROR("interpreter: unimplemented store word with register offset");
+        UNIMPLEMENTED_MSG("unimplemented store word with register offset");
     } else {
         offset = opcode & 0xFFF;
     }
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (add_before_transfer) {
         if (add_offset_to_base) {
             address += offset;
@@ -594,14 +641,14 @@ void ARM7::ARM_StoreWord(const u32 opcode) {
         }
 
         address &= ~0x3; // Word align
-        mmu.Write32(address, r[rd]);
+        mmu.Write32(address, GetRegister(rd));
 
         if (write_back) {
-            LERROR("interpreter: unimplemented store word write-back");
+            UNIMPLEMENTED_MSG("unimplemented store word write-back");
         }
     } else {
         address &= ~0x3; // Word align
-        mmu.Write32(address, r[rd]);
+        mmu.Write32(address, GetRegister(rd));
 
         if (add_offset_to_base) {
             address += offset;
@@ -609,7 +656,7 @@ void ARM7::ARM_StoreWord(const u32 opcode) {
             address -= offset;
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
     }
 }
 
@@ -622,12 +669,12 @@ void ARM7::ARM_LoadByte(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
     u16 offset = 0;
     if (offset_is_register) {
-        LERROR("interpreter: unimplemented load byte with register offset");
+        UNIMPLEMENTED_MSG("unimplemented load byte with register offset");
     } else {
         offset = opcode & 0xFFF;
     }
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (add_before_transfer) {
         if (add_offset_to_base) {
             address += offset;
@@ -635,13 +682,13 @@ void ARM7::ARM_LoadByte(const u32 opcode) {
             address -= offset;
         }
 
-        r[rd] = mmu.Read8(address);
+        SetRegister(rd, mmu.Read8(address));
 
         if (write_back) {
-            LERROR("interpreter: unimplemented load byte write-back");
+            SetRegister(rn, address);
         }
     } else {
-        r[rd] = mmu.Read8(address);
+        SetRegister(rd, mmu.Read8(address));
 
         if (add_offset_to_base) {
             address += offset;
@@ -649,7 +696,7 @@ void ARM7::ARM_LoadByte(const u32 opcode) {
             address -= offset;
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
     }
 }
 
@@ -662,12 +709,12 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
     u16 offset = 0;
     if (offset_is_register) {
-        LERROR("interpreter: unimplemented store byte with register offset");
+        UNIMPLEMENTED_MSG("unimplemented store byte with register offset");
     } else {
         offset = opcode & 0xFFF;
     }
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (add_before_transfer) {
         if (add_offset_to_base) {
             address += offset;
@@ -675,13 +722,13 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
             address -= offset;
         }
 
-        mmu.Write8(address, r[rd]);
+        mmu.Write8(address, GetRegister(rd));
 
         if (write_back) {
-            LERROR("interpreter: unimplemented store byte write-back");
+            UNIMPLEMENTED_MSG("unimplemented store byte write-back");
         }
     } else {
-        mmu.Write8(address, r[rd]);
+        mmu.Write8(address, GetRegister(rd));
 
         if (add_offset_to_base) {
             address += offset;
@@ -689,7 +736,18 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
             address -= offset;
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
+    }
+}
+
+void ARM7::ARM_MRS(const u32 opcode) {
+    const bool source_is_spsr = (opcode >> 22) & 0b1;
+    const u8 rd = (opcode >> 12) & 0xF;
+
+    if (source_is_spsr) {
+        SetRegister(rd, spsr.raw);
+    } else {
+        SetRegister(rd, cpsr.raw);
     }
 }
 
@@ -701,18 +759,52 @@ void ARM7::ARM_MSR(const u32 opcode, const bool flag_bits_only) {
     //
     // "msr won't be the only way to set a PSR. There's mode changes and PSR transfers
     // in block/single data transfers, CPU exceptions and some data processing instructions."
-    LWARN("MSR was skipped... fix me!!!!");
+
+    const bool destination_is_spsr = (opcode >> 22) & 0b1;
+
+    if (flag_bits_only) {
+        const bool operand_is_immediate = (opcode >> 25) & 0b1;
+        const u16 source_operand = opcode & 0xFFF;
+
+        if (operand_is_immediate) {
+            const u8 rotate_amount = (source_operand >> 8) & 0xF;
+            const u8 immediate = source_operand & 0xFF;
+
+            if (destination_is_spsr) {
+                spsr.raw &= ~0xFFFFFF00;
+                spsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
+            } else {
+                cpsr.raw &= ~0xFFFFFF00;
+                cpsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
+            }
+        } else {
+            const u8 rm = source_operand & 0xF;
+            if (destination_is_spsr) {
+                spsr.raw &= ~0xFFFFFF00;
+                spsr.raw = (GetRegister(rm) & 0xFFFFFF00);
+            } else {
+                cpsr.raw &= ~0xFFFFFF00;
+                cpsr.raw = (GetRegister(rm) & 0xFFFFFF00);
+            }
+        }
+    } else {
+        const u8 rm = opcode & 0xF;
+        if (destination_is_spsr) {
+            spsr.raw = GetRegister(rm);
+        } else {
+            cpsr.raw = GetRegister(rm);
+        }
+    }
 }
 
 void ARM7::ARM_BranchAndExchange(const u32 opcode) {
     const u8 rn = opcode & 0xF;
 
     // If bit 0 of Rn is set, we switch to THUMB mode. Else, we switch to ARM mode.
-    cpsr.flags.thumb_mode = r[rn] & 0b1;
+    cpsr.flags.thumb_mode = GetRegister(rn) & 0b1;
     LDEBUG("thumb: %u", cpsr.flags.thumb_mode);
 
-    r[15] = r[rn] & ~0x1;
-    FillPipeline();
+    SetPC(GetRegister(rn) & ~0b1);
 }
 
 void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
@@ -764,8 +856,8 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
     const u8 offset_low = opcode & 0xF;
     const u8 offset = (offset_high << 8) | offset_low;
 
-    u32 address = r[rn];
-    u16 value = r[rd] & 0xFFFF;
+    u32 address = GetRegister(rn);
+    u16 value = GetRegister(rd) & 0xFFFF;
     if (pre_indexing) {
         if (add_offset_to_base) {
             address += offset;
@@ -776,7 +868,7 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
         mmu.Write16(address, sign ? static_cast<s16>(value) : value);
 
         if (write_back) {
-            r[rn] = address;
+            SetRegister(rn, address);
         }
     } else {
         mmu.Write16(address, sign ? static_cast<s16>(value) : value);
@@ -786,7 +878,7 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
             address -= offset;
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
     }
 }
 
@@ -798,28 +890,28 @@ void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
     const u8 rd = (opcode >> 12) & 0xF;
     const u8 rm = opcode & 0xF;
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (pre_indexing) {
         if (add_offset_to_base) {
-            address += r[rm];
+            address += GetRegister(rm);
         } else {
-            address -= r[rm];
+            address -= GetRegister(rm);
         }
 
-        mmu.Write16(address, sign ? static_cast<s16>(r[rd]) : r[rd]);
+        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
 
         if (write_back) {
-            r[rn] = address;
+            SetRegister(rn, address);
         }
     } else {
-        mmu.Write16(address, sign ? static_cast<s16>(r[rd]) : r[rd]);
+        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
         if (add_offset_to_base) {
-            address += r[rm];
+            address += GetRegister(rm);
         } else {
-            address -= r[rm];
+            address -= GetRegister(rm);
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
     }
 }
 
@@ -833,7 +925,7 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
     const u8 offset_low = opcode & 0xF;
     const u8 offset = (offset_high << 8) | offset_low;
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (pre_indexing) {
         if (add_offset_to_base) {
             address += offset;
@@ -842,19 +934,19 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
         }
 
         if (sign) {
-            r[rd] = static_cast<s16>(mmu.Read16(address));
+            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
         } else {
-            r[rd] = mmu.Read16(address);
+            SetRegister(rd, mmu.Read16(address));
         }
 
         if (write_back) {
-            r[rn] = address;
+            SetRegister(rn, address);
         }
     } else {
         if (sign) {
-            r[rd] = static_cast<s16>(mmu.Read16(address));
+            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
         } else {
-            r[rd] = mmu.Read16(address);
+            SetRegister(rd, mmu.Read16(address));
         }
 
         if (add_offset_to_base) {
@@ -863,10 +955,8 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
             address -= offset;
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
     }
-
-    ASSERT_MSG(!write_back, "unimplemented store halfword write-back");
 }
 
 void ARM7::ARM_LoadSignedByte(const u32 opcode) {
@@ -879,7 +969,7 @@ void ARM7::ARM_LoadSignedByte(const u32 opcode) {
     const s8 offset_low = opcode & 0xF;
     const s8 offset = (offset_high << 8) | offset_low;
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (pre_indexing) {
         if (add_offset_to_base) {
             address += offset;
@@ -887,13 +977,13 @@ void ARM7::ARM_LoadSignedByte(const u32 opcode) {
             address -= offset;
         }
 
-        r[rd] = static_cast<s8>(mmu.Read8(address));
+        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
 
         if (write_back) {
-            r[rn] = address;
+            SetRegister(rn, address);
         }
     } else {
-        r[rd] = static_cast<s8>(mmu.Read8(address));
+        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
 
         if (add_offset_to_base) {
             address += offset;
@@ -901,7 +991,7 @@ void ARM7::ARM_LoadSignedByte(const u32 opcode) {
             address -= offset;
         }
 
-        r[rn] = address;
+        SetRegister(rn, address);
     }
 }
 
@@ -913,6 +1003,8 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     const bool load_from_memory = (opcode >> 20) & 0b1;
     const u8 rn = (opcode >> 16) & 0xF;
     const u16 rlist = opcode & 0xFFFF;
+
+    ASSERT_MSG(!load_psr, "unimplemented load PSR in block data transfer");
 
     // Go through `rlist`'s 16 bits, and write down which bits are set. This tells
     // us which registers we need to load/store.
@@ -929,34 +1021,26 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
         return;
     }
 
-    u32 address = r[rn];
+    u32 address = GetRegister(rn);
     if (load_from_memory) {
         if (add_offset_to_base) {
             for (u8 reg : set_bits) {
                 if (pre_indexing) {
                     address += 4;
-                    r[reg] = mmu.Read32(address);
+                    SetRegister(reg, mmu.Read32(address));
                 } else {
-                    r[reg] = mmu.Read32(address);
+                    SetRegister(reg, mmu.Read32(address));
                     address += 4;
-                }
-
-                if (reg == 15) {
-                    FillPipeline();
                 }
             }
         } else {
             for (u8 reg : set_bits | std::views::reverse) {
                 if (pre_indexing) {
                     address -= 4;
-                    r[reg] = mmu.Read32(address);
+                    SetRegister(reg, mmu.Read32(address));
                 } else {
-                    r[reg] = mmu.Read32(address);
+                    SetRegister(reg, mmu.Read32(address));
                     address -= 4;
-                }
-
-                if (reg == 15) {
-                    FillPipeline();
                 }
             }
         }
@@ -965,9 +1049,9 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
             for (u8 reg : set_bits) {
                 if (pre_indexing) {
                     address += 4;
-                    mmu.Write32(address, r[reg]);
+                    mmu.Write32(address, GetRegister(reg));
                 } else {
-                    mmu.Write32(address, r[reg]);
+                    mmu.Write32(address, GetRegister(reg));
                     address += 4;
                 }
             }
@@ -975,9 +1059,9 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
             for (u8 reg : set_bits | std::views::reverse) {
                 if (pre_indexing) {
                     address -= 4;
-                    mmu.Write32(address, r[reg]);
+                    mmu.Write32(address, GetRegister(reg));
                 } else {
-                    mmu.Write32(address, r[reg]);
+                    mmu.Write32(address, GetRegister(reg));
                     address -= 4;
                 }
             }
@@ -985,7 +1069,7 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     }
 
     if (write_back) {
-        r[rn] = address;
+        SetRegister(rn, address);
     }
 }
 
@@ -997,15 +1081,15 @@ void ARM7::ARM_Multiply(const u32 opcode) {
     const u8 rs = (opcode >> 8) & 0xF;
     const u8 rm = opcode & 0xF;
 
-    r[rd] = r[rm] * r[rs];
+    SetRegister(rd, GetRegister(rm) * GetRegister(rs));
 
     if (accumulate) {
-        r[rd] += r[rn];
+        SetRegister(rd, GetRegister(rd) + GetRegister(rn));
     }
 
     if (set_condition_codes) {
-        cpsr.flags.negative = (r[rd] & (1 << 31));
-        cpsr.flags.zero = (r[rd] == 0);
+        cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+        cpsr.flags.zero = (GetRegister(rd) == 0);
     }
 }
 
@@ -1018,12 +1102,14 @@ void ARM7::ARM_MultiplyLong(const u32 opcode) {
     const u8 rs = (opcode >> 8) & 0xF;
     const u8 rm = opcode & 0xF;
 
-    ASSERT_MSG(!accumulate, "unimplemented multiply long with accumulate");
     ASSERT_MSG(!sign, "unimplemented signed multiply long");
 
-    u64 result = r[rm] * r[rs];
-    r[rdlo] = result & 0xFFFFFFFF;
-    r[rdhi] = result >> 32;
+    u64 result = GetRegister(rm) * GetRegister(rs);
+    if (accumulate) {
+        result += ((static_cast<u64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
+    }
+    SetRegister(rdlo, result & 0xFFFFFFFF);
+    SetRegister(rdhi, result >> 32);
 
     if (set_condition_codes) {
         cpsr.flags.negative = (result >> 63);
@@ -1035,7 +1121,7 @@ void ARM7::Thumb_PCRelativeLoad(const u16 opcode) {
     const u8 rd = (opcode >> 8) & 0x7;
     const u8 imm = opcode & 0xFF;
 
-    r[rd] = mmu.Read32((r[15] + (imm << 2)) & ~0x3);
+    SetRegister(rd, mmu.Read32((GetPC() + (imm << 2)) & ~0x3));
 }
 
 void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
@@ -1059,12 +1145,12 @@ void ARM7::Thumb_LSL(const u16 opcode) {
     const u8 offset = (opcode >> 6) & 0x1F;
     const u8 rs = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
-    const u32 source = r[rs];
+    const u32 source = GetRegister(rs);
 
-    r[rd] = source << offset;
+    SetRegister(rd, source << offset);
 
-    cpsr.flags.negative = r[rd] & (1 << 31);
-    cpsr.flags.zero = (r[rd] == 0);
+    cpsr.flags.negative = GetRegister(rd) & (1 << 31);
+    cpsr.flags.zero = (GetRegister(rd) == 0);
     cpsr.flags.carry = source & (1 << (32 - offset));
     LWARN("make LSL's carry flag more accurate");
 }
@@ -1073,14 +1159,14 @@ void ARM7::Thumb_LSR(const u16 opcode) {
     const u8 offset = (opcode >> 6) & 0x1F;
     const u8 rs = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
-    const u32 source = r[rs];
+    const u32 source = GetRegister(rs);
 
-    cpsr.flags.carry = (r[rd] & 0b1);
+    cpsr.flags.carry = (GetRegister(rd) >> (source - 1)) & 0b1;
 
-    r[rd] = source >> offset;
+    SetRegister(rd, source >> offset);
 
-    cpsr.flags.negative = r[rd] & (1 << 31);
-    cpsr.flags.zero = (r[rd] == 0);
+    cpsr.flags.negative = GetRegister(rd) & (1 << 31);
+    cpsr.flags.zero = (GetRegister(rd) == 0);
     LWARN("verify LSR's flags");
 }
 
@@ -1088,12 +1174,12 @@ void ARM7::Thumb_ASR(const u16 opcode) {
     const u8 offset = (opcode >> 6) & 0x1F;
     const u8 rs = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
-    const u32 source = r[rs];
+    const u32 source = GetRegister(rs);
 
-    r[rd] = source >> offset;
+    SetRegister(rd, source >> offset);
 
-    cpsr.flags.negative = r[rd] & (1 << 31);
-    cpsr.flags.zero = (r[rd] == 0);
+    cpsr.flags.negative = GetRegister(rd) & (1 << 31);
+    cpsr.flags.zero = (GetRegister(rd) == 0);
     cpsr.flags.carry = source & (1 << (offset - 1));
     LWARN("verify ASR's carry flag");
 }
@@ -1130,8 +1216,7 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
     }
 
     if (condition) {
-        r[15] += (offset * 2);
-        FillPipeline();
+        SetPC(GetPC() + (offset << 1));
     }
 }
 
@@ -1142,51 +1227,51 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
 
     switch (op) {
         case 0x0:
-            r[rd] = offset;
+            SetRegister(rd, offset);
             break;
         case 0x1:
-            cpsr.flags.zero = (r[rd] == offset);
+            cpsr.flags.zero = (GetRegister(rd) == offset);
             return;
         case 0x2:
-            r[rd] += offset;
+            SetRegister(rd, GetRegister(rd) + offset);
             break;
         case 0x3:
-            r[rd] -= offset;
+            SetRegister(rd, GetRegister(rd) - offset);
             break;
 
         default:
             UNREACHABLE_MSG("interpreter: illegal thumb MCASI op 0x%X", op);
     }
 
-    cpsr.flags.negative = (r[rd] & (1 << 31));
-    cpsr.flags.zero = (r[rd] == 0);
+    cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+    cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
 void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
-    const u16 next_opcode = mmu.Read16(r[15] - 2);
+    const u16 next_opcode = mmu.Read16(GetPC() - 2);
     const u16 offset = opcode & 0x7FF;
     const u16 next_offset = next_opcode & 0x7FF;
 
-    u32 lr = r[14];
-    u32 pc = r[15];
+    u32 lr = GetLR();
+    u32 pc = GetPC();
 
     lr = pc + (offset << 12);
 
     pc = lr + (next_offset << 1);
-    lr = r[15] | 0b1;
+    lr = GetPC() | 0b1;
 
-    r[14] = lr;
-    r[15] = pc;
+    SetLR(lr);
 
     // FIXME: something is going wrong with this calculation.
     // For example, sometimes we should be jumping to 0x08000210,
     // but we're actually jumping to 0x08800210, which is way out
     // of bounds, in terms of cartridge size. No good.
-    if (r[15] & (1 << 23)) {
+    if (pc & (1 << 23)) {
         LERROR("thumb long branch with link reset bit 23 hack");
-        r[15] &= ~(1 << 23);
+        pc &= ~(1 << 23);
     }
-    FillPipeline();
+
+    SetPC(pc);
 }
 
 void ARM7::Thumb_AddSubtract(const u16 opcode) {
@@ -1198,18 +1283,18 @@ void ARM7::Thumb_AddSubtract(const u16 opcode) {
 
     if (subtracting) {
         if (operand_is_immediate) {
-            cpsr.flags.carry = r[rs] < rn_or_immediate;
-            r[rd] = r[rs] - rn_or_immediate;
+            cpsr.flags.carry = GetRegister(rs) < rn_or_immediate;
+            SetRegister(rd, GetRegister(rs) - rn_or_immediate);
         } else {
-            cpsr.flags.carry = r[rs] < r[rn_or_immediate];
-            r[rd] = r[rs] - r[rn_or_immediate];
+            cpsr.flags.carry = GetRegister(rs) < GetRegister(rn_or_immediate);
+            SetRegister(rd, GetRegister(rs) - GetRegister(rn_or_immediate));
         }
     } else {
         LWARN("need to implement the carry flag for thumb add");
         if (operand_is_immediate) {
-            r[rd] = r[rs] + rn_or_immediate;
+            SetRegister(rd, GetRegister(rs) + rn_or_immediate);
         } else {
-            r[rd] = r[rs] + r[rn_or_immediate];
+            SetRegister(rd, GetRegister(rs) + GetRegister(rn_or_immediate));
         }
     }
 }
@@ -1220,61 +1305,74 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
     const u8 rd = opcode & 0x7;
 
     switch (op) {
-        case 0x0:
-            r[rd] &= r[rs];
+        case 0x0: // AND
+            SetRegister(rd, GetRegister(rd) & GetRegister(rs));
             break;
-        case 0x1:
-            r[rd] ^= r[rs];
+        case 0x1: // EOR
+            SetRegister(rd, GetRegister(rd) ^ GetRegister(rs));
             break;
-        case 0x2:
-            // FIXME: for some reason, if we LSL 1 by 32, we get... 1.
-            if (r[rs] >= 32) {
-                r[rd] = 0;
-                break;
+        case 0x2: // LSL
+            if (GetRegister(rs) == 32) {
+                cpsr.flags.carry = (GetRegister(rd) & 0b1);
+            } else if (GetRegister(rs) > 32) {
+                cpsr.flags.carry = false;
+            } else {
+                cpsr.flags.carry = ((GetRegister(rd) >> (32 - GetRegister(rs))) & 0b1);
             }
 
-            r[rd] <<= r[rs];
+            SetRegister(rd, static_cast<u64>(GetRegister(rd)) << GetRegister(rs));
             break;
-        case 0x7:
-            r[rd] = Shift_RotateRight(r[rd], r[rs]);
+        case 0x3: // LSR
+            if (GetRegister(rs) == 32) {
+                cpsr.flags.carry = (GetRegister(rd) >> 31);
+            } else if (GetRegister(rs) > 32) {
+                cpsr.flags.carry = false;
+            } else {
+                cpsr.flags.carry = ((GetRegister(rd) >> (GetRegister(rs) - 1)) & 0b1);
+            }
+
+            SetRegister(rd, GetRegister(rd) >> GetRegister(rs));
             break;
-        case 0x8: {
-            u32 result = r[rd] & r[rs];
+        case 0x7: // ROR
+            SetRegister(rd, Shift_RotateRight(GetRegister(rd), GetRegister(rs)));
+            break;
+        case 0x8: { // TST
+            u32 result = GetRegister(rd) & GetRegister(rs);
             cpsr.flags.zero = (result == 0);
             cpsr.flags.negative = (result & (1 << 31));
             return;
         }
-        case 0x9:
-            r[rd] = -r[rs];
+        case 0x9: // NEG
+            SetRegister(rd, -GetRegister(rs));
             break;
-        case 0xA: {
-            u32 result = r[rd] - r[rs];
+        case 0xA: { // CMP
+            u32 result = GetRegister(rd) - GetRegister(rs);
             cpsr.flags.zero = (result == 0);
             return;
         }
-        case 0xB: {
-            u32 result = r[rd] + r[rs];
+        case 0xB: { // CMN
+            u32 result = GetRegister(rd) + GetRegister(rs);
             cpsr.flags.zero = (result == 0);
             return;
         }
-        case 0xC:
-            r[rd] |= r[rs];
+        case 0xC: // ORR
+            SetRegister(rd, GetRegister(rd) | GetRegister(rs));
             break;
-        case 0xD:
-            r[rd] *= r[rs];
+        case 0xD: // MUL
+            SetRegister(rd, GetRegister(rd) * GetRegister(rs));
             break;
-        case 0xE:
-            r[rd] &= ~r[rs];
+        case 0xE: // BIC
+            SetRegister(rd, GetRegister(rd) & ~GetRegister(rs));
             break;
-        case 0xF:
-            r[rd] = ~r[rs];
+        case 0xF: // MVN
+            SetRegister(rd, ~GetRegister(rs));
             break;
         default:
             UNIMPLEMENTED_MSG("interpreter: unimplemented thumb alu op 0x%X", op);
     }
 
-    cpsr.flags.negative = (r[rd] & (1 << 31));
-    cpsr.flags.zero = (r[rd] == 0);
+    cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+    cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
 void ARM7::Thumb_MultipleLoadStore(const u16 opcode) {
@@ -1299,13 +1397,13 @@ void ARM7::Thumb_MultipleLoadStore(const u16 opcode) {
 
     if (load_from_memory) {
         for (u8 i : set_bits) {
-            r[i] = mmu.Read32(r[rb]);
-            r[rb] += 4;
+            SetRegister(i, mmu.Read32(GetRegister(rb)));
+            SetRegister(rb, GetRegister(rb) + 4);
         }
     } else {
         for (u8 reg : set_bits) {
-            mmu.Write32(r[rb], r[reg]);
-            r[rb] += 4;
+            mmu.Write32(GetRegister(rb), GetRegister(reg));
+            SetRegister(rb, GetRegister(rb) + 4);
         }
     }
 }
@@ -1314,46 +1412,46 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
     const u8 op = (opcode >> 8) & 0x3;
     const bool h1 = (opcode >> 7) & 0b1;
     const bool h2 = (opcode >> 6) & 0b1;
-    const u8 rs_hs = (opcode >> 3) & 0x7;
-    const u8 rd_hd = opcode & 0x7;
+    u8 rs_hs = (opcode >> 3) & 0x7;
+    u8 rd_hd = opcode & 0x7;
 
     ASSERT(!(op == 0x3 && h1));
 
+    if (h1) {
+        rd_hd += 8;
+    }
+
+    if (h2) {
+        rs_hs += 8;
+    }
+
     switch (op) {
         case 0x0:
-            r[h1 ? rd_hd + 8 : rd_hd] += r[h2 ? rs_hs + 8 : rs_hs];
+            SetRegister(rd_hd, GetRegister(rd_hd) + GetRegister(rs_hs));
             // If we're setting R15 through here, we need to halfword align it
             // and refill the pipeline.
-            if (h1 && rd_hd + 8 == 15) {
-                r[15] &= ~0b1;
-                FillPipeline();
+            if (rd_hd == 15) {
+                SetPC(GetPC() & ~0b1);
             }
             break;
         case 0x2:
-            r[h1 ? rd_hd + 8 : rd_hd] = r[h2 ? rs_hs + 8 : rs_hs];
+            SetRegister(rd_hd, GetRegister(rs_hs));
             // If we're setting R15 through here, we need to halfword align it
             // and refill the pipeline.
-            if (h1 && rd_hd + 8 == 15) {
-                r[15] &= ~0b1;
-                FillPipeline();
+            if (rd_hd == 15) {
+                SetPC(GetPC() & ~0b1);
             }
             break;
         case 0x3:
-            if (h2) {
-                cpsr.flags.thumb_mode = r[rs_hs + 8] & 0b1;
-                r[15] = r[rs_hs + 8] & ~0x1;
-            } else {
-                cpsr.flags.thumb_mode = r[rs_hs] & 0b1;
-                r[15] = r[rs_hs] & ~0x1;
-            }
-            FillPipeline();
+            cpsr.flags.thumb_mode = GetRegister(rs_hs) & 0b1;
+            SetPC(GetRegister(rs_hs) & ~0b1);
             return;
         default:
             UNIMPLEMENTED_MSG("interpreter: unimplemented thumb hi reg op 0x%X", op);
     }
 
-    cpsr.flags.negative = (r[h1 ? rd_hd + 8 : rd_hd] & (1 << 31));
-    cpsr.flags.zero = (r[h1 ? rd_hd + 8 : rd_hd] == 0);
+    cpsr.flags.negative = (GetRegister(rd_hd) & (1 << 31));
+    cpsr.flags.zero = (GetRegister(rd_hd) == 0);
 }
 
 void ARM7::Thumb_LoadStoreWithImmediateOffset(const u16 opcode) {
@@ -1380,7 +1478,7 @@ void ARM7::Thumb_StoreByteWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    mmu.Write8(r[rd], r[rb] + offset);
+    mmu.Write8(GetRegister(rd), GetRegister(rb) + offset);
 }
 
 void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
@@ -1388,7 +1486,7 @@ void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    r[rd] = mmu.Read8(r[rb] + offset);
+    SetRegister(rd, mmu.Read8(GetRegister(rb) + offset));
 }
 
 void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
@@ -1396,7 +1494,7 @@ void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    mmu.Write32(r[rd], r[rb] + offset);
+    mmu.Write32(GetRegister(rd), GetRegister(rb) + offset);
 }
 
 void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
@@ -1404,7 +1502,7 @@ void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    r[rd] = mmu.Read32(r[rb] + offset);
+    SetRegister(rd, mmu.Read32(GetRegister(rb) + offset));
 }
 
 void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
@@ -1429,13 +1527,11 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
         }
 
         if (load_from_memory) {
-            r[15] = mmu.Read32(r[13]) & ~0b1;
-            FillPipeline();
-
-            r[13] += 4;
+            SetPC(mmu.Read32(GetSP()) & ~0b1);
+            SetSP(GetSP() + 4);
         } else {
-            mmu.Write32(r[13], r[14]);
-            r[13] -= 4;
+            mmu.Write32(GetSP(), GetLR());
+            SetSP(GetSP() - 4);
         }
 
         return;
@@ -1443,25 +1539,23 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
 
     if (load_from_memory) {
         for (u8 reg : set_bits) {
-            r[reg] = mmu.Read32(r[13]);
-            r[13] += 4;
+            SetRegister(reg, mmu.Read32(GetSP()));
+            SetSP(GetSP() + 4);
         }
 
         if (store_lr_load_pc) {
-            r[15] = mmu.Read32(r[13]) & ~0b1;
-            FillPipeline();
-
-            r[13] += 4;
+            SetPC(mmu.Read32(GetSP()) & ~0b1);
+            SetSP(GetSP() + 4);
         }
     } else {
         if (store_lr_load_pc) {
-            r[13] -= 4;
-            mmu.Write32(r[13], r[14]);
+            SetSP(GetSP() - 4);
+            mmu.Write32(GetSP(), GetLR());
         }
 
         for (u8 reg : set_bits | std::views::reverse) {
-            r[13] -= 4;
-            mmu.Write32(r[13], r[reg]);
+            SetSP(GetSP() - 4);
+            mmu.Write32(GetSP(), GetRegister(reg));
         }
     }
 }
@@ -1473,8 +1567,7 @@ void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
     offset <<= 4;
     offset >>= 4;
 
-    r[15] += offset;
-    FillPipeline();
+    SetPC(GetPC() + offset);
 }
 
 void ARM7::Thumb_LoadAddress(const u16 opcode) {
@@ -1482,7 +1575,7 @@ void ARM7::Thumb_LoadAddress(const u16 opcode) {
     const u8 rd = (opcode >> 8) & 0x7;
     const u8 imm = opcode & 0xFF;
 
-    r[rd] = (imm << 2) + (load_from_sp ? r[13] : r[15]);
+    SetRegister(rd, (imm << 2) + (load_from_sp ? GetSP() : GetPC()));
 }
 
 void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
@@ -1490,9 +1583,9 @@ void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
     const u8 imm = opcode & 0x7F;
 
     if (offset_is_negative) {
-        r[13] -= imm;
+        SetSP(GetSP() - imm);
     } else {
-        r[13] += imm;
+        SetSP(GetSP() + imm);
     }
 }
 
@@ -1503,9 +1596,9 @@ void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
     const u8 rd = opcode & 0x7;
 
     if (load_from_memory) {
-        r[rd] = mmu.Read16(r[rb] + imm);
+        SetRegister(rd, mmu.Read16(GetRegister(rb) + imm));
     } else {
-        mmu.Write16(r[rb] + imm, r[rd] & 0xFFFF);
+        mmu.Write16(GetRegister(rb) + imm, static_cast<u16>(GetRegister(rd)));
     }
 }
 
@@ -1518,15 +1611,15 @@ void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
 
     if (load_from_memory) {
         if (transfer_byte) {
-            r[rd] = mmu.Read8(r[rb] + r[ro]);
+            SetRegister(rd, mmu.Read8(GetRegister(rb) + GetRegister(ro)));
         } else {
-            r[rd] = mmu.Read32(r[rb] + r[ro]);
+            SetRegister(rd, mmu.Read32(GetRegister(rb) + GetRegister(ro)));
         }
     } else {
         if (transfer_byte) {
-            mmu.Write8(r[rb] + r[ro], r[rd] & 0xFF);
+            mmu.Write8(GetRegister(rb) + GetRegister(ro), GetRegister(rd) & 0xFF);
         } else {
-            mmu.Write32(r[rb] + r[ro], r[rd] & 0xFF);
+            mmu.Write32(GetRegister(rb) + GetRegister(ro), GetRegister(rd));
         }
     }
 }
@@ -1540,31 +1633,31 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
 
     if (sign_extend) {
         if (h_flag) {
-            r[rd] = mmu.Read16(r[rb] + r[ro]);
+            SetRegister(rd, mmu.Read16(GetRegister(rb) + GetRegister(ro)));
 
             // Set bits 31-16 of Rd to what's in bit 15.
-            if (!(r[rd] & (1 << 15))) {
+            if (!(GetRegister(rd) & (1 << 15))) {
                 return;
             }
 
             for (u8 i = 16; i < 31; i++) {
-                r[rd] |= (1 << i);
+                SetRegister(rd, GetRegister(rd) | (1 << i));
             }
         } else {
-            r[rd] = mmu.Read8(r[rb] + r[ro]);
+            SetRegister(rd, mmu.Read8(GetRegister(rb) + GetRegister(ro)));
 
             // Set bits 31-8 of Rd to what's in bit 15.
-            if (!(r[rd] & (1 << 7))) {
+            if (!(GetRegister(rd) & (1 << 7))) {
                 return;
             }
 
             for (u8 i = 8; i < 31; i++) {
-                r[rd] |= (1 << i);
+                SetRegister(rd, GetRegister(rd) | (1 << i));
             }
         }
     } else {
         if (h_flag) {
-            r[rd] = mmu.Read16(r[rb] + r[ro]);
+            SetRegister(rd, mmu.Read16(GetRegister(rb) + GetRegister(ro)));
         } else {
             UNIMPLEMENTED_MSG("unimplemented thumb store (not sign-extended) halfword");
         }

@@ -34,7 +34,7 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
 
         case ARM_Instructions::Unknown:
         default:
-            UNIMPLEMENTED_MSG("disassembler: unhandled ARM instruction %u (opcode: %08X, pc: %08X)", static_cast<u8>(instr), opcode, r[15] - 8);
+            UNIMPLEMENTED_MSG("disassembler: unhandled ARM instruction %u (opcode: %08X, pc: %08X)", static_cast<u8>(instr), opcode, GetPC() - 8);
     }
 }
 
@@ -94,8 +94,26 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
 
         case Thumb_Instructions::Unknown:
         default:
-            UNIMPLEMENTED_MSG("disassembler: unhandled THUMB instruction %u (opcode: %04X, pc: %08X)", static_cast<u8>(instr), opcode, r[15] - 4);
+            UNIMPLEMENTED_MSG("disassembler: unhandled THUMB instruction %u (opcode: %04X, pc: %08X)", static_cast<u8>(instr), opcode, GetPC() - 4);
     }
+}
+
+std::string ARM7::GetRegisterAsString(u8 reg) const {
+    ASSERT(reg <= 15);
+
+    if (reg == 13) {
+        return "SP";
+    }
+
+    if (reg == 14) {
+        return "LR";
+    }
+
+    if (reg == 15) {
+        return "PC";
+    }
+
+    return std::to_string(reg);
 }
 
 std::string ARM7::GetConditionCode(const u8 cond) {
@@ -129,14 +147,15 @@ void ARM7::ARM_DisassembleBranch(const u32 opcode) {
     offset <<= 6;
     offset >>= 6;
 
-    disasm += fmt::format(" 0x{:08X}", r[15] + offset);
+    disasm += fmt::format(" 0x{:08X}", GetPC() + offset);
 
     LTRACE_ARM("%s", disasm.c_str());
 }
 
 void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
     if ((opcode & 0x0FBF0FFF) == 0x010F0000) {
-        UNIMPLEMENTED_MSG("disassembler: implement MRS");
+        ARM_DisassembleMRS(opcode);
+        return;
     }
 
     if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
@@ -329,14 +348,58 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
             disasm += fmt::format("[R{}]", rn);
         } else {
             if (offset_is_register) {
-                UNIMPLEMENTED_MSG("disassembler: unimplemented single data transfer with register offset");
+                u8 shift = (offset >> 4) & 0xFF;
+                u8 rm = offset & 0xF;
+
+                disasm += fmt::format("[R{}, ", rn);
+                if (!add_offset_to_base) {
+                    disasm += "-";
+                }
+                disasm += fmt::format("R{}", rm);
+
+                if ((shift & 0b1) == 0) {
+                    u16 shift_amount = (shift >> 3) & 0x1F;
+                    u8 shift_type = (shift >> 1) & 0b11;
+
+                    if (!shift_amount) {
+                        disasm += "]";
+                    } else {
+                        constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
+                        disasm += fmt::format(", {} #{}]", shift_types[shift_type], shift_amount);
+                    }
+                } else if ((shift & 0b1001) == 0b0001) {
+                    UNIMPLEMENTED();
+                } else {
+                    ASSERT(false);
+                }
             } else {
                 disasm += fmt::format("[R{}, #0x{:08X}]", rn, offset);
             }
         }
     } else {
         if (offset_is_register) {
-            UNIMPLEMENTED_MSG("disassembler: unimplemented single data transfer with register offset");
+            u8 shift = (offset >> 4) & 0xFF;
+            u8 rm = offset & 0xF;
+
+            disasm += fmt::format("[R{}], ", rn);
+            if (!add_offset_to_base) {
+                disasm += "-";
+            }
+            disasm += fmt::format("R{}", rm);
+
+            if ((shift & 0b1) == 0) {
+                u16 shift_amount = (shift >> 3) & 0x1F;
+                u8 shift_type = (shift >> 1) & 0b11;
+
+                if (shift_amount) {
+                    constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
+                    disasm += fmt::format(", {} #{}", shift_types[shift_type], shift_amount);
+                }
+            } else if ((shift & 0b1001) == 0b0001) {
+                UNIMPLEMENTED();
+            } else {
+                ASSERT(false);
+            }
         } else {
             disasm += fmt::format("[R{}], #0x{:08X}", rn, offset);
         }
@@ -349,8 +412,58 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
     LTRACE_ARM("%s", disasm.c_str());
 }
 
+void ARM7::ARM_DisassembleMRS(const u32 opcode) {
+    const u8 cond = (opcode >> 28) & 0xF;
+    const bool source_is_spsr = (opcode >> 22) & 0b1;
+    const u8 rd = (opcode >> 12) & 0xF;
+    std::string disasm;
+
+    disasm += fmt::format("MRS{} ", GetConditionCode(cond));
+
+    disasm += fmt::format("R{}, ", rd);
+
+    if (source_is_spsr) {
+        disasm += "SPSR";
+    } else {
+        disasm += "CPSR";
+    }
+
+    LTRACE_ARM("%s", disasm.c_str());
+}
+
 void ARM7::ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only) {
-    LTRACE_ARM("MSR");
+    const u8 cond = (opcode >> 28) & 0xF;
+    const bool destination_is_spsr = (opcode >> 22) & 0b1;
+    std::string disasm;
+
+    disasm += fmt::format("MSR{} ", GetConditionCode(cond));
+
+    if (flag_bits_only) {
+        const bool operand_is_immediate = (opcode >> 25) & 0b1;
+        const u16 source_operand = opcode & 0xFFF;
+
+        if (destination_is_spsr) {
+            disasm += "SPSR_flg, ";
+        } else {
+            disasm += "CPSR_flg, ";
+        }
+
+        if (operand_is_immediate) {
+            const u8 rotate_amount = (source_operand >> 8) & 0xF;
+            const u8 immediate = source_operand & 0xFF;
+
+            disasm += fmt::format("#0x{:08X}", Shift_RotateRight(immediate, rotate_amount * 2));
+        } else {
+            const u8 rm = source_operand & 0xF;
+            disasm += fmt::format("R{}", rm);
+        }
+    } else {
+        const u8 rm = opcode & 0xF;
+
+        disasm += fmt::format("{}_all, R{}", destination_is_spsr ? "SPSR" : "CPSR", rm);
+    }
+
+    LTRACE_ARM("%s", disasm.c_str());
 }
 
 void ARM7::ARM_DisassembleBranchAndExchange(const u32 opcode) {
@@ -659,7 +772,7 @@ void ARM7::Thumb_DisassembleConditionalBranch(const u16 opcode) {
     };
     disasm += std::string(mnemonics.at(cond));
 
-    disasm += fmt::format(" 0x{:08X}", r[15] + (offset * 2));
+    disasm += fmt::format(" 0x{:08X}", GetPC() + (offset * 2));
 
     LTRACE_THUMB("%s", disasm.c_str());
 }
@@ -679,14 +792,14 @@ void ARM7::Thumb_DisassembleMoveCompareAddSubtractImmediate(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
-    const u16 next_opcode = mmu.Read16(r[15] - 2);
+    const u16 next_opcode = mmu.Read16(GetPC() - 2);
     // Used for LTRACE_DOUBLETHUMB
     const u32 double_opcode = (static_cast<u32>(opcode) << 16) | next_opcode;
     const u16 offset_high = opcode & 0x7FF;
     const u16 offset_low = next_opcode & 0x7FF;
 
-    u32 lr = r[14];
-    u32 pc = r[15];
+    u32 lr = GetLR();
+    u32 pc = GetPC();
 
     const bool first_instruction = ((opcode >> 11) & 0b1) == 0b0;
     ASSERT(first_instruction);
@@ -697,7 +810,7 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
     ASSERT(second_instruction);
 
     pc = lr + (offset_low << 1);
-    lr = r[15] | 0b1;
+    lr = GetPC() | 0b1;
 
     LDEBUG("LR=%08X", lr);
     LTRACE_DOUBLETHUMB("BX 0x%08X", pc);
@@ -896,7 +1009,7 @@ void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
     offset <<= 4;
     offset >>= 4;
 
-    LTRACE_THUMB("B 0x%08X", r[15] + offset);
+    LTRACE_THUMB("B 0x%08X", GetPC() + offset);
 }
 
 void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {

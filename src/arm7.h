@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mmu.h"
+#include "logging.h"
 #include "types.h"
 
 class ARM7 {
@@ -8,7 +9,128 @@ public:
     ARM7(MMU& mmu, PPU& ppu);
 
     void Step(bool dump_registers);
+
+    inline u32 GetPC() const { return GetRegister(15); }
 private:
+    inline u32 GetSP() const { return GetRegister(13); }
+    inline void SetSP(u32 value) { SetRegister(13, value); }
+
+    inline u32 GetLR() const { return GetRegister(14); }
+    inline void SetLR(u32 value) { SetRegister(14, value); }
+
+    inline void SetPC(u32 value) { SetRegister(15, value); }
+
+    inline u32 GetRegister(u8 reg) const {
+        ASSERT(reg <= 15);
+
+        if (reg <= 7) {
+            return gpr[reg];
+        }
+
+        switch (cpsr.flags.processor_mode) {
+            case ProcessorMode::System:
+            case ProcessorMode::User:
+                return gpr[reg];
+            case ProcessorMode::FIQ:
+                if (reg >= 8 && reg <= 14) {
+                    return fiq_r[reg - 8];
+                }
+
+                return gpr[reg];
+            case ProcessorMode::Supervisor:
+                if (reg == 13 || reg == 14) {
+                    return svc_r[reg - 13];
+                }
+
+                return gpr[reg];
+            case ProcessorMode::Abort:
+                if (reg == 13 || reg == 14) {
+                    return abt_r[reg - 13];
+                }
+
+                return gpr[reg];
+            case ProcessorMode::IRQ:
+                if (reg == 13 || reg == 14) {
+                    return irq_r[reg - 13];
+                }
+
+                return gpr[reg];
+            case ProcessorMode::Undefined:
+                if (reg == 13 || reg == 14) {
+                    return und_r[reg - 13];
+                }
+
+                return gpr[reg];
+            default:
+                UNREACHABLE_MSG("invalid ARM7 processor mode 0x%02X", static_cast<u8>(cpsr.flags.processor_mode));
+        }
+    }
+
+    inline void SetRegister(u8 reg, u32 value) {
+        ASSERT(reg <= 15);
+
+        if (reg <= 7) {
+            gpr[reg] = value;
+            return;
+        }
+
+        switch (cpsr.flags.processor_mode) {
+            case ProcessorMode::System:
+            case ProcessorMode::User:
+                gpr[reg] = value;
+                break;
+            case ProcessorMode::FIQ:
+                if (reg >= 8 && reg <= 14) {
+                    fiq_r[reg - 8] = value;
+                    break;
+                }
+
+                gpr[reg] = value;
+                break;
+            case ProcessorMode::Supervisor:
+                if (reg == 13 || reg == 14) {
+                    svc_r[reg - 13] = value;
+                    break;
+                }
+
+                gpr[reg] = value;
+                break;
+            case ProcessorMode::Abort:
+                if (reg == 13 || reg == 14) {
+                    abt_r[reg - 13] = value;
+                    break;
+                }
+
+                gpr[reg] = value;
+                break;
+            case ProcessorMode::IRQ:
+                if (reg == 13 || reg == 14) {
+                    irq_r[reg - 13] = value;
+                    break;
+                }
+
+                gpr[reg] = value;
+                break;
+            case ProcessorMode::Undefined:
+                if (reg == 13 || reg == 14) {
+                    und_r[reg - 13] = value;
+                    break;
+                }
+
+                gpr[reg] = value;
+                break;
+            default:
+                UNREACHABLE();
+        }
+
+        if (reg == 15) {
+            // Refill the pipeline whenever we change R15 aka the PC
+            FillPipeline();
+        }
+    }
+
+    std::string GetRegisterAsString(u8 reg) const;
+
     enum class ARM_Instructions {
         DataProcessing,
         Multiply,
@@ -85,9 +207,24 @@ private:
     std::array<u32, 2> pipeline;
 
     // General purpose registers
-    std::array<u32, 16> r;
+    std::array<u32, 16> gpr;
 
-    union {
+    // FIQ-mode registers
+    std::array<u32, 7> fiq_r;
+
+    // Supervisor-mode registers
+    std::array<u32, 2> svc_r;
+
+    // Abort-mode registers
+    std::array<u32, 2> abt_r;
+
+    // IRQ-mode registers
+    std::array<u32, 2> irq_r;
+
+    // Undefined-mode registers
+    std::array<u32, 2> und_r;
+
+    union PSR {
         u32 raw = 0;
         struct {
             // FIXME: this struct assumes the user is running on a little-endian system.
@@ -101,7 +238,15 @@ private:
             bool zero : 1;
             bool negative : 1;
         } flags;
-    } cpsr;
+    };
+
+    PSR cpsr;
+    PSR spsr;
+    PSR spsr_fiq;
+    PSR spsr_svc;
+    PSR spsr_abt;
+    PSR spsr_irq;
+    PSR spsr_und;
 
     MMU& mmu;
     PPU& ppu;
@@ -119,6 +264,8 @@ private:
     void ARM_LoadByte(const u32 opcode);
     void ARM_StoreByte(const u32 opcode);
 
+    void ARM_MRS(const u32 opcode);
+    void ARM_DisassembleMRS(const u32 opcode);
     void ARM_MSR(const u32 opcode, const bool flag_bits_onl);
     void ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only);
 
