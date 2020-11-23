@@ -290,6 +290,10 @@ private:
     void ARM_MultiplyLong(const u32 opcode);
     void ARM_DisassembleMultiplyLong(const u32 opcode);
 
+    void ARM_SoftwareInterrupt(const u32 opcode);
+    void ARM_DisassembleSoftwareInterrupt(const u32 opcode);
+    void ARM_SWI_Div();
+
     void Thumb_PCRelativeLoad(const u16 opcode);
     void Thumb_DisassemblePCRelativeLoad(const u16 opcode);
 

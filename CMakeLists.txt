@@ -25,6 +25,7 @@ endif()
 set(SOURCES
     src/arm7.cpp
     src/arm7_disassembler.cpp
+    src/arm7_swi.cpp
     src/cartridge.cpp
     src/gba.cpp
     src/main.cpp

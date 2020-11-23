@@ -31,6 +31,9 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
         case ARM_Instructions::Branch:
             ARM_DisassembleBranch(opcode);
             break;
+        case ARM_Instructions::SoftwareInterrupt:
+            ARM_DisassembleSoftwareInterrupt(opcode);
+            break;
 
         case ARM_Instructions::Unknown:
         default:
@@ -734,6 +737,14 @@ void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
 
     disasm += fmt::format(" R{}, R{}, R{}, R{}", rdlo, rdhi, rm, rs);
 
+    LTRACE_ARM("%s", disasm.c_str());
+}
+
+void ARM7::ARM_DisassembleSoftwareInterrupt(const u32 opcode) {
+    const u8 cond = (opcode >> 28) & 0xF;
+    const u32 comment = opcode & 0xFFFFFF;
+
+    std::string disasm = fmt::format("SWI{} 0x{:X}", GetConditionCode(cond), comment);
     LTRACE_ARM("%s", disasm.c_str());
 }
 

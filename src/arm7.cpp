@@ -111,6 +111,9 @@ void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode)
         case ARM_Instructions::Branch:
             ARM_Branch(opcode);
             break;
+        case ARM_Instructions::SoftwareInterrupt:
+            ARM_SoftwareInterrupt(opcode);
+            break;
 
         case ARM_Instructions::Unknown:
         default:
