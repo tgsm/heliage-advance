@@ -32,7 +32,7 @@ void ARM7::Step(bool dump_registers) {
         pipeline[1] = mmu.Read16(gpr[15]);
 
         const Thumb_Instructions instr = DecodeThumbInstruction(opcode);
-        if (true)
+        if (dump_registers)
             DumpRegisters();
         DisassembleThumbInstruction(instr, opcode);
         ExecuteThumbInstruction(instr, opcode);

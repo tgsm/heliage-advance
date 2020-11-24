@@ -330,6 +330,21 @@ void ARM7::ARM_MultiplyLong(const u32 opcode) {
     }
 }
 
+void ARM7::ARM_SingleDataSwap(const u32 opcode) {
+    const bool swap_byte = (opcode >> 22) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const u8 rm = opcode & 0xF;
+
+    if (swap_byte) {
+        SetRegister(rd, mmu.Read8(GetRegister(rn)));
+        mmu.Write8(GetRegister(rn), GetRegister(rm));
+    } else {
+        SetRegister(rd, mmu.Read32(GetRegister(rn)));
+        mmu.Write32(GetRegister(rn), GetRegister(rm));
+    }
+}
+
 void ARM7::ARM_BranchAndExchange(const u32 opcode) {
     const u8 rn = opcode & 0xF;
 
@@ -347,6 +362,9 @@ void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
 
     const u8 conditions = (load_from_memory << 1) | halfword;
     switch (conditions) {
+        case 0b00:
+            ARM_SingleDataSwap(opcode);
+            break;
         case 0b01:
             ARM_StoreHalfwordRegister(opcode, sign);
             break;
@@ -396,7 +414,8 @@ void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
     const u8 conditions = (load_from_memory << 1) | halfword;
     switch (conditions) {
         case 0b00:
-            UNIMPLEMENTED_MSG("unimplemented SWP");
+            ARM_SingleDataSwap(opcode);
+            break;
         case 0b01:
             ARM_StoreHalfwordImmediate(opcode, sign);
             break;

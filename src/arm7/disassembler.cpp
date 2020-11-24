@@ -412,7 +412,24 @@ void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
     LTRACE_ARM("%s", disasm.c_str());
 }
 
-// TODO: ARM single data swap
+void ARM7::ARM_DisassembleSingleDataSwap(const u32 opcode) {
+    const u8 cond = (opcode >> 28) & 0xF;
+    const bool swap_byte = (opcode >> 22) & 0b1;
+    const u8 rn = (opcode >> 16) & 0xF;
+    const u8 rd = (opcode >> 12) & 0xF;
+    const u8 rm = opcode & 0xF;
+    std::string disasm;
+
+    disasm += fmt::format("SWP{}", GetConditionCode(cond));
+
+    if (swap_byte) {
+        disasm += "B";
+    }
+
+    disasm += fmt::format(" R{}, R{}, [R{}]", rd, rm, rn);
+
+    LTRACE_ARM("%s", disasm.c_str());
+}
 
 void ARM7::ARM_DisassembleBranchAndExchange(const u32 opcode) {
     const u8 cond = (opcode >> 28) & 0xF;
@@ -436,6 +453,11 @@ void ARM7::ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode) {
     const bool halfword = (opcode >> 5) & 0b1;
     const u8 rm = opcode & 0xF;
     std::string disasm;
+
+    if (!sign && !halfword) {
+        ARM_DisassembleSingleDataSwap(opcode);
+        return;
+    }
 
     if (load_from_memory) {
         disasm += "LDR";
@@ -492,6 +514,11 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
     const u8 offset_low = opcode & 0xF;
     const u8 offset = (offset_high << 8) | offset_low;
     std::string disasm;
+
+    if (!sign && !halfword) {
+        ARM_DisassembleSingleDataSwap(opcode);
+        return;
+    }
 
     if (load_from_memory) {
         disasm += "LDR";

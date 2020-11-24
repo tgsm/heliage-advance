@@ -265,7 +265,8 @@ private:
     void ARM_MultiplyLong(const u32 opcode);
     void ARM_DisassembleMultiplyLong(const u32 opcode);
 
-    // TODO: Single data swap
+    void ARM_SingleDataSwap(const u32 opcode);
+    void ARM_DisassembleSingleDataSwap(const u32 opcode);
 
     void ARM_BranchAndExchange(const u32 opcode);
     void ARM_DisassembleBranchAndExchange(const u32 opcode);
