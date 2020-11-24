@@ -30,21 +30,3 @@ std::string Cartridge::GetGameTitle() {
     std::copy_n(rom.begin() + 0xA0, TITLE_LENGTH, std::back_inserter(title));
     return title;
 }
-
-u8 Cartridge::Read8(u32 addr) const {
-    return rom.at(addr);
-}
-
-u16 Cartridge::Read16(u32 addr) const {
-    const u16 value = ((rom.at(addr + 1) << 8) |
-                       (rom.at(addr)));
-    return value;
-}
-
-u32 Cartridge::Read32(u32 addr) const {
-    const u32 value = ((rom.at(addr + 3) << 24) |
-                       (rom.at(addr + 2) << 16) |
-                       (rom.at(addr + 1) << 8) |
-                       (rom.at(addr)));
-    return value;
-}

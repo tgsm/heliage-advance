@@ -22,7 +22,7 @@ u8 MMU::Read8(u32 addr) {
         }
 
         case 0x8:
-            return cartridge.Read8(masked_addr & 0x1FFFFFF);
+            return cartridge.Read<u8>(masked_addr & 0x1FFFFFF);
         default:
             LERROR("unrecognized read8 from 0x%08X", addr);
             return 0xFF;
@@ -77,7 +77,7 @@ u16 MMU::Read16(u32 addr) {
         }
 
         case 0x8:
-            return cartridge.Read16(masked_addr & 0x1FFFFFF);
+            return cartridge.Read<u16>(masked_addr & 0x1FFFFFF);
 
         default:
             LERROR("unrecognized read16 from 0x%08X", addr);
@@ -150,7 +150,7 @@ u32 MMU::Read32(u32 addr) {
             }
 
         case 0x8:
-            return cartridge.Read32(masked_addr & 0x1FFFFFF);
+            return cartridge.Read<u32>(masked_addr & 0x1FFFFFF);
 
         default:
             LERROR("unrecognized read32 from 0x%08X", addr);
