@@ -1,4 +1,6 @@
+#if defined(__GNUC__) && !defined(__clang__)
 #include <ranges>
+#endif
 #include "arm7/arm7.h"
 
 void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
@@ -437,10 +439,18 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
             mmu.Write32(GetSP(), GetLR());
         }
 
+// TODO: Remove this when Clang supports the ranges library.
+#if defined(__GNUC__) && !defined(__clang__)
         for (u8 reg : set_bits | std::views::reverse) {
             SetSP(GetSP() - 4);
             mmu.Write32(GetSP(), GetRegister(reg));
         }
+#else
+        for (int i = set_bits.size() - 1; i >= 0; i--) {
+            SetSP(GetSP() - 4);
+            mmu.Write32(GetSP(), GetRegister(set_bits[i]));
+        }
+#endif
     }
 }
 
