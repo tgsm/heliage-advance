@@ -23,9 +23,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 set(SOURCES
-    src/arm7.cpp
-    src/arm7_disassembler.cpp
-    src/arm7_swi.cpp
+    src/arm7/arm7.cpp
+    src/arm7/disassembler.cpp
+    src/arm7/arm/arm.cpp
+    src/arm7/arm/swi.cpp
+    src/arm7/thumb/thumb.cpp
     src/cartridge.cpp
     src/gba.cpp
     src/main.cpp
@@ -34,7 +36,7 @@ set(SOURCES
 )
 
 set(HEADERS
-    src/arm7.h
+    src/arm7/arm7.h
     src/cartridge.h
     src/gba.h
     src/keypad.h
@@ -54,7 +56,7 @@ endif()
 add_subdirectory(dependencies/fmt)
 
 add_executable(heliage-advance ${SOURCES} ${HEADERS})
-target_include_directories(heliage-advance PRIVATE dependencies)
+target_include_directories(heliage-advance PRIVATE src dependencies)
 target_link_libraries(heliage-advance fmt)
 if (${HA_FRONTEND} MATCHES "SDL2")
     target_link_libraries(heliage-advance SDL2)

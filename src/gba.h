@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arm7.h"
+#include "arm7/arm7.h"
 #include "cartridge.h"
 #include "keypad.h"
 #include "mmu.h"

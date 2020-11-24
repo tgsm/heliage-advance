@@ -1,4 +1,4 @@
-#include "arm7.h"
+#include "arm7/arm7.h"
 
 void ARM7::ARM_SoftwareInterrupt(const u32 opcode) {
     // LDEBUG("ARM-mode SWI at %08X", GetPC() - 8);
