@@ -1,5 +1,4 @@
 #include <bit>
-#include <cstdarg>
 #include "arm7.h"
 #include "logging.h"
 
