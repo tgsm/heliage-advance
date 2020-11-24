@@ -96,6 +96,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             case 0xD:
                 SetRegister(rd, rotated_operand);
                 break;
+            case 0xE:
+                SetRegister(rd, GetRegister(rn) & ~rotated_operand);
+                break;
             case 0xF:
                 SetRegister(rd, ~rotated_operand);
                 break;
