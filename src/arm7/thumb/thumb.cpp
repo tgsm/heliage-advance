@@ -212,7 +212,7 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
             // If we're setting R15 through here, we need to halfword align it
             // and refill the pipeline.
             if (rd_hd == 15) {
-                SetPC(GetPC() & ~0b1);
+                SetPC((GetPC() - 2) & ~0b1);
             }
             break;
         case 0x2:
@@ -220,7 +220,7 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
             // If we're setting R15 through here, we need to halfword align it
             // and refill the pipeline.
             if (rd_hd == 15) {
-                SetPC(GetPC() & ~0b1);
+                SetPC((GetPC() - 2) & ~0b1);
             }
             break;
         case 0x3:
