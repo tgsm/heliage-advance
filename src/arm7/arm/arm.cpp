@@ -318,18 +318,30 @@ void ARM7::ARM_MultiplyLong(const u32 opcode) {
     const u8 rs = (opcode >> 8) & 0xF;
     const u8 rm = opcode & 0xF;
 
-    ASSERT_MSG(!sign, "unimplemented signed multiply long");
+    if (sign) {
+        s64 result = static_cast<s64>(GetRegister(rm)) * static_cast<s64>(GetRegister(rs));
+        if (accumulate) {
+            result += ((static_cast<s64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
+        }
+        SetRegister(rdlo, result & 0xFFFFFFFF);
+        SetRegister(rdhi, result >> 32);
 
-    u64 result = GetRegister(rm) * GetRegister(rs);
-    if (accumulate) {
-        result += ((static_cast<u64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
-    }
-    SetRegister(rdlo, result & 0xFFFFFFFF);
-    SetRegister(rdhi, result >> 32);
+        if (set_condition_codes) {
+            cpsr.flags.negative = (result >> 63);
+            cpsr.flags.zero = (result == 0);
+        }
+    } else {
+        u64 result = GetRegister(rm) * GetRegister(rs);
+        if (accumulate) {
+            result += ((static_cast<u64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
+        }
+        SetRegister(rdlo, result & 0xFFFFFFFF);
+        SetRegister(rdhi, result >> 32);
 
-    if (set_condition_codes) {
-        cpsr.flags.negative = (result >> 63);
-        cpsr.flags.zero = (result == 0);
+        if (set_condition_codes) {
+            cpsr.flags.negative = (result >> 63);
+            cpsr.flags.zero = (result == 0);
+        }
     }
 }
 
