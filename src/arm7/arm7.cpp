@@ -63,12 +63,12 @@ ARM7::ARM_Instructions ARM7::DecodeARMInstruction(const u32 opcode) const {
     if ((opcode & 0x0E000000) == 0x08000000) return ARM_Instructions::BlockDataTransfer;
     if ((opcode & 0x0E000010) == 0x06000010) return ARM_Instructions::Undefined;
     if ((opcode & 0x0C000000) == 0x04000000) return ARM_Instructions::SingleDataTransfer;
-    if ((opcode & 0x0E400090) == 0x00400090) return ARM_Instructions::HalfwordDataTransferImmediate;
-    if ((opcode & 0x0E400F90) == 0x00000090) return ARM_Instructions::HalfwordDataTransferRegister;
     if ((opcode & 0x0FFFFFF0) == 0x012FFF10) return ARM_Instructions::BranchAndExchange;
     if ((opcode & 0x0FB00FF0) == 0x01000090) return ARM_Instructions::SingleDataSwap;
     if ((opcode & 0x0F8000F0) == 0x00800090) return ARM_Instructions::MultiplyLong;
     if ((opcode & 0x0FC000F0) == 0x00000090) return ARM_Instructions::Multiply;
+    if ((opcode & 0x0E400090) == 0x00400090) return ARM_Instructions::HalfwordDataTransferImmediate;
+    if ((opcode & 0x0E400F90) == 0x00000090) return ARM_Instructions::HalfwordDataTransferRegister;
     if ((opcode & 0x0C000000) == 0x00000000) return ARM_Instructions::DataProcessing;
 
     // The opcode did not meet any of the above conditions.
@@ -90,6 +90,9 @@ void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode)
             break;
         case ARM_Instructions::MultiplyLong:
             ARM_MultiplyLong(opcode);
+            break;
+        case ARM_Instructions::SingleDataSwap:
+            ARM_SingleDataSwap(opcode);
             break;
         case ARM_Instructions::BranchAndExchange:
             ARM_BranchAndExchange(opcode);

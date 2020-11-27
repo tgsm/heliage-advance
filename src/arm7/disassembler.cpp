@@ -13,6 +13,9 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
         case ARM_Instructions::MultiplyLong:
             ARM_DisassembleMultiplyLong(opcode);
             break;
+        case ARM_Instructions::SingleDataSwap:
+            ARM_DisassembleSingleDataSwap(opcode);
+            break;
         case ARM_Instructions::BranchAndExchange:
             ARM_DisassembleBranchAndExchange(opcode);
             break;
