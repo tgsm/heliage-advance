@@ -339,7 +339,7 @@ bool ARM7::CheckConditionCode(const u8 cond) {
             return (cpsr.flags.zero || (cpsr.flags.negative != cpsr.flags.overflow));
         case 0xE:
             return true;
-        default: // cond is 0xF
+        [[unlikely]] default: // cond is 0xF
             UNREACHABLE_MSG("invalid condition code 0x%X", cond);
     }
 }
