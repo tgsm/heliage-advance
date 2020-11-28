@@ -340,6 +340,6 @@ bool ARM7::CheckConditionCode(const u8 cond) {
         case 0xE:
             return true;
         default: // cond is 0xF
-            UNREACHABLE();
+            UNREACHABLE_MSG("invalid condition code 0x%X", cond);
     }
 }

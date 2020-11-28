@@ -120,7 +120,7 @@ private:
                 gpr[reg] = value;
                 break;
             default:
-                UNREACHABLE();
+                UNREACHABLE_MSG("invalid ARM7 processor mode 0x%X", static_cast<u8>(cpsr.flags.processor_mode));
         }
 
         if (reg == 15) {
