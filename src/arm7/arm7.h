@@ -197,7 +197,17 @@ private:
     void FillPipeline();
     void Die(const char* format, ...);
 
-    u32 Shift(const u8 operand_to_shift, const u8 shift_type, const u8 shift_amount);
+    enum class ShiftType {
+        LSL,
+        LSR,
+        ASR,
+        ROR,
+    };
+
+    u32 Shift(const u64 operand_to_shift, const ShiftType shift_type, const u8 shift_amount);
+    u32 Shift_LSL(const u64 operand_to_shift, const u8 shift_amount);
+    u32 Shift_LSR(const u64 operand_to_shift, const u8 shift_amount);
+    u32 Shift_ASR(const u64 operand_to_shift, const u8 shift_amount);
     u32 Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount);
 
     bool CheckConditionCode(const u8 cond);

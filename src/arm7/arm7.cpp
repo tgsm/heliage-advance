@@ -231,15 +231,68 @@ void ARM7::FillPipeline() {
     }
 }
 
-u32 ARM7::Shift(const u8 operand_to_shift, const u8 shift_type, const u8 shift_amount) {
+u32 ARM7::Shift(const u64 operand_to_shift, const ShiftType shift_type, const u8 shift_amount) {
     if (!shift_amount) { // shift by 0 digits
         return operand_to_shift;
     }
 
     switch (shift_type) {
+        case ShiftType::LSL:
+            return Shift_LSL(operand_to_shift, shift_amount);
+        case ShiftType::LSR:
+            return Shift_LSR(operand_to_shift, shift_amount);
+        case ShiftType::ASR:
+            return Shift_ASR(operand_to_shift, shift_amount);
+        case ShiftType::ROR:
+            return Shift_RotateRight(operand_to_shift, shift_amount);
         default:
-            UNIMPLEMENTED_MSG("unimplemented shift type %u", shift_type);
+            UNREACHABLE();
     }
+}
+
+u32 ARM7::Shift_LSL(const u64 operand_to_shift, const u8 shift_amount) {
+    if (shift_amount >= 32) {
+        if (shift_amount == 32) {
+            cpsr.flags.carry = operand_to_shift & 0b1;
+        } else {
+            cpsr.flags.carry = false;
+        }
+
+        return 0;
+    }
+
+    cpsr.flags.carry = ((operand_to_shift >> (32 - shift_amount)) & 0b1);
+    return operand_to_shift << shift_amount;
+}
+
+u32 ARM7::Shift_LSR(const u64 operand_to_shift, const u8 shift_amount) {
+    if (shift_amount >= 32) {
+        if (shift_amount == 32) {
+            cpsr.flags.carry = operand_to_shift & (1 << 31);
+        } else {
+            cpsr.flags.carry = false;
+        }
+
+        return 0;
+    }
+
+    cpsr.flags.carry = ((operand_to_shift >> (shift_amount - 1)) & 0b1);
+    return operand_to_shift >> shift_amount;
+}
+
+u32 ARM7::Shift_ASR(const u64 operand_to_shift, const u8 shift_amount) {
+    if (shift_amount >= 32) {
+        if (shift_amount == 32) {
+            cpsr.flags.carry = operand_to_shift & (1 << 31);
+        } else {
+            cpsr.flags.carry = false;
+        }
+
+        return 0;
+    }
+
+    cpsr.flags.carry = ((operand_to_shift >> (shift_amount - 1)) & 0b1);
+    return static_cast<s64>(operand_to_shift) >> shift_amount;
 }
 
 u32 ARM7::Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount) {

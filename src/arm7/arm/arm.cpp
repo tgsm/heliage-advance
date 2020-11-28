@@ -29,7 +29,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     if (op2_is_immediate) {
         u8 rotate_amount = (op2 >> 8) & 0xF;
         u8 imm = op2 & 0xFF;
-        u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
+        u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1);
 
         switch (op) {
             case 0x0:
@@ -43,6 +43,15 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 cpsr.flags.carry = (result <= GetRegister(rn));
                 if (set_condition_codes) {
                     cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (~rotated_operand ^ result)) >> 31;
+                }
+                SetRegister(rd, result);
+                break;
+            }
+            case 0x3: {
+                u32 result = rotated_operand - GetRegister(rn);
+                cpsr.flags.carry = (result < GetRegister(rn));
+                if (set_condition_codes) {
+                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (rotated_operand ^ result)) >> 31;
                 }
                 SetRegister(rd, result);
                 break;
@@ -74,8 +83,25 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 SetRegister(rd, result);
                 break;
             }
+            case 0x7: {
+                u32 result = rotated_operand - GetRegister(rn) - 1 + cpsr.flags.carry;
+                cpsr.flags.carry = (result <= GetRegister(rn));
+                if (set_condition_codes) {
+                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (~rotated_operand ^ result)) >> 31;
+                }
+                SetRegister(rd, result);
+                break;
+            }
             case 0x8: {
                 u32 result = GetRegister(rn) & rotated_operand;
+                cpsr.flags.negative = (result & (1 << 31));
+                cpsr.flags.carry = (result < GetRegister(rn));
+                cpsr.flags.zero = (result == 0);
+
+                return;
+            }
+            case 0x9: {
+                u32 result = GetRegister(rn) ^ rotated_operand;
                 cpsr.flags.negative = (result & (1 << 31));
                 cpsr.flags.carry = (result < GetRegister(rn));
                 cpsr.flags.zero = (result == 0);
@@ -90,6 +116,15 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
                 return;
             }
+            case 0xB: {
+                u32 result = rotated_operand + GetRegister(rn);
+                cpsr.flags.carry = (result < GetRegister(rn));
+                if (set_condition_codes) {
+                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (rotated_operand ^ result)) >> 31;
+                }
+                SetRegister(rd, result);
+                break;
+            }
             case 0xC:
                 SetRegister(rd, GetRegister(rn) | rotated_operand);
                 break;
@@ -103,123 +138,79 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 SetRegister(rd, ~rotated_operand);
                 break;
             default:
-                UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X", op);
+                UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X w/ immediate", op);
         }
     } else {
         u8 shift = (op2 >> 4) & 0xFF;
         u8 rm = op2 & 0xF;
         if ((shift & 0b1) == 0) {
             u8 shift_amount = (shift >> 3) & 0x1F;
-            u8 shift_type = (shift >> 1) & 0b11;
+            ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
+            u32 shifted_operand = Shift(GetRegister(rm), shift_type, shift_amount);
 
-            if (!shift_amount) {
-                switch (op) {
-                    case 0x0:
-                        SetRegister(rd, GetRegister(rn) & GetRegister(rm));
-                        break;
-                    case 0x1:
-                        SetRegister(rd, GetRegister(rn) ^ GetRegister(rm));
-                        break;
-                    case 0x2:
-                        SetRegister(rd, GetRegister(rn) - GetRegister(rm));
-                        break;
-                    case 0x4:
-                        SetRegister(rd, GetRegister(rn) + GetRegister(rm));
-                        break;
-                    case 0x5:
-                        SetRegister(rd, GetRegister(rn) + GetRegister(rm) + cpsr.flags.carry);
-                        break;
-                    case 0x6:
-                        SetRegister(rd, GetRegister(rn) - GetRegister(rm) + cpsr.flags.carry - 1);
-                        break;
-                    case 0x7:
-                        SetRegister(rd, GetRegister(rm) - GetRegister(rn) + cpsr.flags.carry - 1);
-                        break;
-                    case 0xA: {
-                        u32 result = GetRegister(rn) - GetRegister(rm);
-                        cpsr.flags.negative = (result & (1 << 31));
-                        cpsr.flags.carry = (result < GetRegister(rn));
-                        cpsr.flags.zero = (result == 0);
+            switch (op) {
+                case 0x0:
+                    SetRegister(rd, GetRegister(rn) & shifted_operand);
+                    break;
+                case 0x1:
+                    SetRegister(rd, GetRegister(rn) ^ shifted_operand);
+                    break;
+                case 0x2:
+                    SetRegister(rd, GetRegister(rn) - shifted_operand);
+                    break;
+                case 0x4:
+                    SetRegister(rd, GetRegister(rn) + shifted_operand);
+                    break;
+                case 0x5:
+                    SetRegister(rd, GetRegister(rn) + shifted_operand + cpsr.flags.carry);
+                    break;
+                case 0x6:
+                    SetRegister(rd, GetRegister(rn) - shifted_operand + cpsr.flags.carry - 1);
+                    break;
+                case 0x7:
+                    SetRegister(rd, shifted_operand - GetRegister(rn) + cpsr.flags.carry - 1);
+                    break;
+                case 0xA: {
+                    u32 result = GetRegister(rn) - shifted_operand;
+                    cpsr.flags.negative = (result & (1 << 31));
+                    cpsr.flags.carry = (result < GetRegister(rn));
+                    cpsr.flags.zero = (result == 0);
 
-                        return;
-                    }
-                    case 0xB: {
-                        u32 result = GetRegister(rn) + GetRegister(rm);
-                        cpsr.flags.negative = (result & (1 << 31));
-                        cpsr.flags.carry = (result < GetRegister(rn));
-                        cpsr.flags.zero = (result == 0);
-
-                        return;
-                    }
-                    case 0xC:
-                        SetRegister(rd, GetRegister(rn) | GetRegister(rm));
-                        break;
-                    case 0xD:
-                        SetRegister(rd, GetRegister(rm));
-                        break;
-                    case 0xF:
-                        SetRegister(rd, ~GetRegister(rm));
-                        break;
-                    default:
-                        UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with zero shift", op);
+                    return;
                 }
+                case 0xB: {
+                    u32 result = GetRegister(rn) + shifted_operand;
+                    cpsr.flags.negative = (result & (1 << 31));
+                    cpsr.flags.carry = (result < GetRegister(rn));
+                    cpsr.flags.zero = (result == 0);
 
-                return;
-            }
-
-            switch ((op << 2) | shift_type) {
-                // Case format: XXXXYY
-                // X: op, Y: shift type
-                case 0b000001: // AND w/ LSR
-                    SetRegister(rd, GetRegister(rn) & (GetRegister(rm) >> shift_amount));
+                    return;
+                }
+                case 0xC:
+                    SetRegister(rd, GetRegister(rn) | shifted_operand);
                     break;
-                case 0b000100: // EOR w/ LSL
-                    SetRegister(rd, GetRegister(rn) ^ (GetRegister(rm) << shift_amount));
+                case 0xD:
+                    SetRegister(rd, shifted_operand);
                     break;
-                case 0b010000: // ADD w/ LSL
-                    SetRegister(rd, GetRegister(rn) + (GetRegister(rm) << shift_amount));
+                case 0xE:
+                    SetRegister(rd, GetRegister(rn) & ~shifted_operand);
                     break;
-                case 0b010101: // ADC w/ LSR
-                    SetRegister(rd, GetRegister(rn) + (GetRegister(rm) >> shift_amount) + cpsr.flags.carry);
-                    break;
-                case 0b110100: // MOV w/ LSL
-                    SetRegister(rd, (GetRegister(rm) << shift_amount));
-                    break;
-                case 0b110000: // ORR w/ LSL
-                    SetRegister(rd, GetRegister(rn) | (GetRegister(rm) << shift_amount));
-                    break;
-                case 0b110011: // ORR w/ ROR
-                    SetRegister(rd, GetRegister(rn) | Shift_RotateRight(GetRegister(rm), shift_amount));
-                    break;
-                case 0b110101: // MOV w/ LSR
-                    SetRegister(rd, (GetRegister(rm) >> shift_amount));
-                    break;
-                case 0b110111: // MOV w/ ROR
-                    SetRegister(rd, Shift_RotateRight(GetRegister(rm), shift_amount));
-                    break;
-                case 0b111010: // BIC w/ ASR:
-                    // TODO: carry flag
-                    SetRegister(rd, (GetRegister(rm) >> shift_amount));
+                case 0xF:
+                    SetRegister(rd, ~shifted_operand);
                     break;
                 default:
-                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with shift type 0x%X", op, shift_type);
+                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X w/ register", op);
             }
         } else if ((shift & 0b1001) == 0b0001) {
             u8 rs = (shift >> 4) & 0xF;
-            u8 shift_type = (shift >> 1) & 0b11;
+            ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
 
-            // Case format: XXXXYY
-            // X: op, Y: shift type
-            switch ((op << 2) | shift_type) {
-                case 0b110100: // MOV w/ LSL
-                    SetRegister(rd, GetRegister(rm) << GetRegister(rs));
-                    break;
-                case 0b110110: // MOV w/ ASR
-                    // TODO: carry flag
-                    SetRegister(rd, GetRegister(rm) >> GetRegister(rs));
+            switch (op) {
+                case 0xD:
+                    SetRegister(rd, Shift(GetRegister(rm), shift_type, GetRegister(rs)));
                     break;
                 default:
-                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X with shift type 0x%X", op, shift_type);
+                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X w/ register and barrel shifter", op);
             }
         } else {
             ASSERT(false);
@@ -596,23 +587,9 @@ void ARM7::ARM_LoadWord(const u32 opcode) {
 
         if ((shift & 0b1) == 0) {
             u8 shift_amount = (shift >> 3) & 0x1F;
-            u8 shift_type = (shift >> 1) & 0b11;
+            ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
 
-            if (!shift_amount) {
-                offset = (add_offset_to_base) ? GetRegister(rm) : -GetRegister(rm);
-            } else {
-                switch (shift_type) {
-                    case 0b00:
-                        offset = (GetRegister(rm) << shift_amount);
-                        break;
-                    case 0b01:
-                        offset = (GetRegister(rm) >> shift_amount);
-                        break;
-                    default:
-                        UNIMPLEMENTED();
-                }
-            }
-
+            offset = Shift(GetRegister(rm), shift_type, shift_amount);
             if (!add_offset_to_base) {
                 offset = -offset;
             }

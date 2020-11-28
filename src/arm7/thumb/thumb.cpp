@@ -26,12 +26,10 @@ void ARM7::Thumb_LSL(const u16 opcode) {
     const u8 rd = opcode & 0x7;
     const u32 source = GetRegister(rs);
 
-    SetRegister(rd, source << offset);
+    SetRegister(rd, Shift(source, ShiftType::LSL, offset));
 
     cpsr.flags.negative = GetRegister(rd) & (1 << 31);
     cpsr.flags.zero = (GetRegister(rd) == 0);
-    cpsr.flags.carry = source & (1 << (32 - offset));
-    LWARN("make LSL's carry flag more accurate");
 }
 
 void ARM7::Thumb_LSR(const u16 opcode) {
@@ -40,13 +38,10 @@ void ARM7::Thumb_LSR(const u16 opcode) {
     const u8 rd = opcode & 0x7;
     const u32 source = GetRegister(rs);
 
-    cpsr.flags.carry = (GetRegister(rd) >> (source - 1)) & 0b1;
-
-    SetRegister(rd, source >> offset);
+    SetRegister(rd, Shift(source, ShiftType::LSR, offset));
 
     cpsr.flags.negative = GetRegister(rd) & (1 << 31);
     cpsr.flags.zero = (GetRegister(rd) == 0);
-    LWARN("verify LSR's flags");
 }
 
 void ARM7::Thumb_ASR(const u16 opcode) {
@@ -55,11 +50,10 @@ void ARM7::Thumb_ASR(const u16 opcode) {
     const u8 rd = opcode & 0x7;
     const u32 source = GetRegister(rs);
 
-    SetRegister(rd, source >> offset);
+    SetRegister(rd, Shift(source, ShiftType::ASR, offset));
 
     cpsr.flags.negative = GetRegister(rd) & (1 << 31);
     cpsr.flags.zero = (GetRegister(rd) == 0);
-    cpsr.flags.carry = source & (1 << (offset - 1));
     LWARN("verify ASR's carry flag");
 }
 
@@ -128,29 +122,13 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             SetRegister(rd, GetRegister(rd) ^ GetRegister(rs));
             break;
         case 0x2: // LSL
-            if (GetRegister(rs) == 32) {
-                cpsr.flags.carry = (GetRegister(rd) & 0b1);
-            } else if (GetRegister(rs) > 32) {
-                cpsr.flags.carry = false;
-            } else {
-                cpsr.flags.carry = ((GetRegister(rd) >> (32 - GetRegister(rs))) & 0b1);
-            }
-
-            SetRegister(rd, static_cast<u64>(GetRegister(rd)) << GetRegister(rs));
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::LSL, GetRegister(rs)));
             break;
         case 0x3: // LSR
-            if (GetRegister(rs) == 32) {
-                cpsr.flags.carry = (GetRegister(rd) >> 31);
-            } else if (GetRegister(rs) > 32) {
-                cpsr.flags.carry = false;
-            } else {
-                cpsr.flags.carry = ((GetRegister(rd) >> (GetRegister(rs) - 1)) & 0b1);
-            }
-
-            SetRegister(rd, GetRegister(rd) >> GetRegister(rs));
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::LSR, GetRegister(rs)));
             break;
         case 0x7: // ROR
-            SetRegister(rd, Shift_RotateRight(GetRegister(rd), GetRegister(rs)));
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::ROR, GetRegister(rs)));
             break;
         case 0x8: { // TST
             u32 result = GetRegister(rd) & GetRegister(rs);
