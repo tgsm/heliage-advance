@@ -10,23 +10,19 @@ public:
 
     std::string GetGameTitle();
 
-    template <typename T>
+    template <UnsignedIntegerMax32 T>
     T Read(u32 addr) const {
-        static_assert(std::is_same<T, u8>::value ||
-                      std::is_same<T, u16>::value ||
-                      std::is_same<T, u32>::value, "T must be a u8, u16, or u32");
-
-        if constexpr (std::is_same<T, u8>::value) {
+        if constexpr (std::is_same_v<T, u8>) {
             return rom.at(addr);
         }
 
-        if constexpr (std::is_same<T, u16>::value) {
+        if constexpr (std::is_same_v<T, u16>) {
             addr &= ~0b1;
             return (rom.at(addr) |
                    (rom.at(addr + 1) << 8));
         }
 
-        if constexpr (std::is_same<T, u32>::value) {
+        if constexpr (std::is_same_v<T, u32>) {
             addr &= ~0b11;
             return (rom.at(addr) |
                    (rom.at(addr + 1) << 8) |
