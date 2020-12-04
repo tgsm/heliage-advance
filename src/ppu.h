@@ -19,23 +19,19 @@ public:
 
     u16 GetVCOUNT() const { return vcount; }
 
-    template <typename T>
+    template <UnsignedIntegerMax32 T>
     T ReadVRAM(u32 addr) const {
-        static_assert(std::is_same<T, u8>::value ||
-                      std::is_same<T, u16>::value ||
-                      std::is_same<T, u32>::value, "T must be a u8, u16, or u32");
-
-        if constexpr (std::is_same<T, u8>::value) {
+        if constexpr (std::is_same_v<T, u8>) {
             return vram.at(addr);
         }
 
-        if constexpr (std::is_same<T, u16>::value) {
+        if constexpr (std::is_same_v<T, u16>) {
             addr &= ~0b1;
             return (vram.at(addr) |
                    (vram.at(addr + 1) << 8));
         }
 
-        if constexpr (std::is_same<T, u32>::value) {
+        if constexpr (std::is_same_v<T, u32>) {
             addr &= ~0b11;
             return (vram.at(addr) |
                    (vram.at(addr + 1) << 8) |
@@ -44,23 +40,19 @@ public:
         }
     }
 
-    template <typename T>
+    template <UnsignedIntegerMax32 T>
     void WriteVRAM(u32 addr, T value) {
-        static_assert(std::is_same<T, u8>::value ||
-                      std::is_same<T, u16>::value ||
-                      std::is_same<T, u32>::value, "T must be a u8, u16, or u32");
-
-        if constexpr (std::is_same<T, u8>::value) {
+        if constexpr (std::is_same_v<T, u8>) {
             vram[addr] = value;
         }
 
-        if constexpr (std::is_same<T, u16>::value) {
+        if constexpr (std::is_same_v<T, u16>) {
             addr &= ~0b1;
             vram[addr] = value & 0xFF;
             vram[addr + 1] = value >> 8;
         }
 
-        if constexpr (std::is_same<T, u32>::value) {
+        if constexpr (std::is_same_v<T, u32>) {
             addr &= ~0b11;
             vram.at(addr) = value & 0xFF;
             vram.at(addr + 1) = value >> 8;
