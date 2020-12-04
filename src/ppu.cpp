@@ -32,7 +32,7 @@ void PPU::Tick() {
         scheduler_entries.front().second();
 
         // Remove our function from the queue
-        scheduler_entries.erase(scheduler_entries.begin());
+        scheduler_entries.pop_front();
     }
 }
 
