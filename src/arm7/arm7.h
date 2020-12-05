@@ -211,6 +211,7 @@ private:
     u32 Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount);
 
     u32 ADC(const u32 operand1, const u32 operand2, const bool change_flags);
+    u32 ADD(const u32 operand1, const u32 operand2, const bool change_flags);
 
     bool CheckConditionCode(const u8 cond);
     std::string GetConditionCode(const u8 cond);
