@@ -252,10 +252,10 @@ void ARM7::ARM_MSR(const u32 opcode, const bool flag_bits_only) {
             const u8 rm = source_operand & 0xF;
             if (destination_is_spsr) {
                 spsr.raw &= ~0xFFFFFF00;
-                spsr.raw = (GetRegister(rm) & 0xFFFFFF00);
+                spsr.raw |= (GetRegister(rm) & 0xFFFFFF00);
             } else {
                 cpsr.raw &= ~0xFFFFFF00;
-                cpsr.raw = (GetRegister(rm) & 0xFFFFFF00);
+                cpsr.raw |= (GetRegister(rm) & 0xFFFFFF00);
             }
         }
     } else {
