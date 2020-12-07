@@ -22,6 +22,10 @@ u8 MMU::Read8(u32 addr) {
         }
 
         case 0x8:
+            if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
+                // TODO: open bus?
+                return 0;
+            }
             return cartridge.Read<u8>(masked_addr & 0x1FFFFFF);
         default:
             LERROR("unrecognized read8 from 0x%08X", addr);
@@ -77,6 +81,10 @@ u16 MMU::Read16(u32 addr) {
         }
 
         case 0x8:
+            if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
+                // TODO: open bus?
+                return 0;
+            }
             return cartridge.Read<u16>(masked_addr & 0x1FFFFFF);
 
         default:
@@ -150,6 +158,10 @@ u32 MMU::Read32(u32 addr) {
             }
 
         case 0x8:
+            if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
+                // TODO: open bus?
+                return 0;
+            }
             return cartridge.Read<u32>(masked_addr & 0x1FFFFFF);
 
         default:

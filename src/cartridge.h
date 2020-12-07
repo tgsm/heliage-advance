@@ -10,6 +10,8 @@ public:
 
     std::string GetGameTitle();
 
+    std::size_t GetSize() const { return rom_size; }
+
     template <UnsignedIntegerMax32 T>
     T Read(u32 addr) const {
         if constexpr (std::is_same_v<T, u8>) {
