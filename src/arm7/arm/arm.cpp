@@ -644,7 +644,7 @@ void ARM7::ARM_StoreWord(const u32 opcode) {
         mmu.Write32(address, GetRegister(rd));
 
         if (write_back) {
-            UNIMPLEMENTED_MSG("unimplemented store word write-back");
+            SetRegister(rn, address);
         }
     } else {
         address &= ~0x3; // Word align
@@ -725,7 +725,7 @@ void ARM7::ARM_StoreByte(const u32 opcode) {
         mmu.Write8(address, GetRegister(rd));
 
         if (write_back) {
-            UNIMPLEMENTED_MSG("unimplemented store byte write-back");
+            SetRegister(rn, address);
         }
     } else {
         mmu.Write8(address, GetRegister(rd));
