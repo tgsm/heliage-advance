@@ -106,7 +106,7 @@ void MMU::Write16(u32 addr, u16 value) {
 
         case 0x4:
             switch (masked_addr) {
-                case 0x04000000:
+                case 0x4000000:
                     ppu.SetDISPCNT(value);
                     return;
                 default:
@@ -150,8 +150,10 @@ u32 MMU::Read32(u32 addr) {
 
         case 0x4:
             switch (masked_addr) {
-                case 0x04000004:
+                case 0x4000004:
                     return ppu.GetDISPSTAT();
+                case 0x4000130:
+                    return keypad.GetState();
                 default:
                     LERROR("unrecognized read32 from 0x%08X (IO)", addr);
                     return 0xFFFFFFFF;
@@ -183,7 +185,7 @@ void MMU::Write32(u32 addr, u32 value) {
 
         case 0x4:
             switch (masked_addr) {
-                case 0x04000000:
+                case 0x4000000:
                     ppu.SetDISPCNT(value);
                     return;
                 default:
