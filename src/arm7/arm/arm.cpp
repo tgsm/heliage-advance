@@ -310,7 +310,7 @@ void ARM7::ARM_MultiplyLong(const u32 opcode) {
             cpsr.flags.zero = (result == 0);
         }
     } else {
-        u64 result = GetRegister(rm) * GetRegister(rs);
+        u64 result = static_cast<u64>(GetRegister(rm)) * static_cast<u64>(GetRegister(rs));
         if (accumulate) {
             result += ((static_cast<u64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
         }
