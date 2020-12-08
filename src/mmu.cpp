@@ -16,7 +16,12 @@ u8 MMU::Read8(u32 addr) {
         }
 
         case 0x6: {
-            u8 value = ppu.ReadVRAM<u8>(masked_addr & 0x17FFF);
+            u32 address = masked_addr & 0x1FFFF;
+            if (address > 0x17FFF) {
+                address -= 0x8000;
+            }
+
+            u8 value = ppu.ReadVRAM<u8>(address);
             LDEBUG("read8 0x%02X from 0x%08X (VRAM)", value, addr);
             return value;
         }
@@ -75,7 +80,12 @@ u16 MMU::Read16(u32 addr) {
             return 0xFFFF;
 
         case 0x6: {
-            u16 value = ppu.ReadVRAM<u16>(masked_addr);
+            u32 address = masked_addr & 0x1FFFF;
+            if (address > 0x17FFF) {
+                address -= 0x8000;
+            }
+
+            u16 value = ppu.ReadVRAM<u16>(address);
             LDEBUG("read16 0x%04X from 0x%08X (VRAM)", value, masked_addr);
             return value;
         }
@@ -122,10 +132,16 @@ void MMU::Write16(u32 addr, u16 value) {
             }
             return;
 
-        case 0x6:
+        case 0x6: {
+            u32 address = masked_addr & 0x1FFFF;
+            if (address > 0x17FFF) {
+                address -= 0x8000;
+            }
+
             LDEBUG("write16 0x%04X to 0x%08X (VRAM)", value, masked_addr);
-            ppu.WriteVRAM<u16>(masked_addr & 0x17FFF, value);
+            ppu.WriteVRAM<u16>(address, value);
             return;
+        }
 
         default:
             LERROR("unrecognized write16 0x%04X to 0x%08X", value, addr);
@@ -193,10 +209,16 @@ void MMU::Write32(u32 addr, u32 value) {
                     return;
             }
 
-        case 0x6:
+        case 0x6: {
+            u32 address = masked_addr & 0x1FFFF;
+            if (address > 0x17FFF) {
+                address -= 0x8000;
+            }
+
             LDEBUG("write32 0x%08X to 0x%08X (VRAM)", value, masked_addr);
-            ppu.WriteVRAM<u32>(masked_addr & 0x17FFF, value);
+            ppu.WriteVRAM<u32>(address, value);
             return;
+        }
 
         case 0x8:
             LWARN("tried to write32 0x%08X to 0x%08X (cartridge space)", value, masked_addr);
