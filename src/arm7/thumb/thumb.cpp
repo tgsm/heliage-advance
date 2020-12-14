@@ -102,7 +102,7 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
             break;
 
         default:
-            UNREACHABLE_MSG("interpreter: illegal thumb MCASI op 0x%X", op);
+            UNREACHABLE_MSG("interpreter: illegal thumb MCASI op 0x{:X}", op);
     }
 
     cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
@@ -162,7 +162,7 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             SetRegister(rd, ~GetRegister(rs));
             break;
         default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb alu op 0x%X", op);
+            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb alu op 0x{:X}", op);
     }
 
     cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
@@ -208,7 +208,7 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
             SetPC(GetRegister(rs_hs) & ~0b1);
             return;
         default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb hi reg op 0x%X", op);
+            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb hi reg op 0x{:X}", op);
     }
 
     cpsr.flags.negative = (GetRegister(rd_hd) & (1 << 31));
@@ -493,7 +493,7 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
             condition = (cpsr.flags.negative != cpsr.flags.overflow);
             break;
         default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb conditional branch condition 0x%X", cond);
+            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb conditional branch condition 0x{:X}", cond);
     }
 
     if (condition) {

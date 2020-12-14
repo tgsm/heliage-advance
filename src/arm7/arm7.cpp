@@ -118,7 +118,7 @@ void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode)
 
         case ARM_Instructions::Unknown:
         default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented ARM instruction (%u)", static_cast<u8>(instr));
+            UNIMPLEMENTED_MSG("interpreter: unimplemented ARM instruction ({})", instr);
     }
 }
 
@@ -203,31 +203,31 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
 
         case Thumb_Instructions::Unknown:
         default:
-            UNIMPLEMENTED_MSG("interpreter: unknown THUMB instruction (%u)", static_cast<u8>(instr));
+            UNIMPLEMENTED_MSG("interpreter: unknown THUMB instruction ({})", instr);
     }
 }
 
 void ARM7::DumpRegisters() {
-    printf("r0: %08X r1: %08X r2: %08X r3: %08X\n", GetRegister(0), GetRegister(1), GetRegister(2), GetRegister(3));
-    printf("r4: %08X r5: %08X r6: %08X r7: %08X\n", GetRegister(4), GetRegister(5), GetRegister(6), GetRegister(7));
-    printf("r8: %08X r9: %08X r10:%08X r11:%08X\n", GetRegister(8), GetRegister(9), GetRegister(10), GetRegister(11));
-    printf("r12:%08X sp: %08X lr: %08X pc: %08X\n", GetRegister(12), GetSP(), GetLR(), cpsr.flags.thumb_mode ? GetPC() - 4 : GetPC() - 8);
-    printf("cpsr:%08X\n", cpsr.raw);
+    fmt::print("r0: {:08X} r1: {:08X} r2: {:08X} r3: {:08X}\n", GetRegister(0), GetRegister(1), GetRegister(2), GetRegister(3));
+    fmt::print("r4: {:08X} r5: {:08X} r6: {:08X} r7: {:08X}\n", GetRegister(4), GetRegister(5), GetRegister(6), GetRegister(7));
+    fmt::print("r8: {:08X} r9: {:08X} r10:{:08X} r11:{:08X}\n", GetRegister(8), GetRegister(9), GetRegister(10), GetRegister(11));
+    fmt::print("r12:{:08X} sp: {:08X} lr: {:08X} pc: {:08X}\n", GetRegister(12), GetSP(), GetLR(), cpsr.flags.thumb_mode ? GetPC() - 4 : GetPC() - 8);
+    fmt::print("cpsr:{:08X}\n", cpsr.raw);
 }
 
 void ARM7::FillPipeline() {
     if (cpsr.flags.thumb_mode) {
         pipeline[0] = mmu.Read16(gpr[15]);
-        // LDEBUG("r15=%08X p0=%04X", gpr[15], pipeline[0]);
+        // LDEBUG("r15={:08X} p0={:04X}", gpr[15], pipeline[0]);
         gpr[15] += 2;
         pipeline[1] = mmu.Read16(gpr[15]);
-        // LDEBUG("r15=%08X p1=%04X", gpr[15], pipeline[1]);
+        // LDEBUG("r15={:08X} p1={:04X}", gpr[15], pipeline[1]);
     } else {
         pipeline[0] = mmu.Read32(gpr[15]);
-        // LDEBUG("r15=%08X p0=%08X", gpr[15], pipeline[0]);
+        // LDEBUG("r15={:08X} p0={:08X}", gpr[15], pipeline[0]);
         gpr[15] += 4;
         pipeline[1] = mmu.Read32(gpr[15]);
-        // LDEBUG("r15=%08X p1=%08X", gpr[15], pipeline[1]);
+        // LDEBUG("r15={:08X} p1={:08X}", gpr[15], pipeline[1]);
     }
 }
 
@@ -364,6 +364,6 @@ bool ARM7::CheckConditionCode(const u8 cond) {
         case 0xE:
             return true;
         [[unlikely]] default: // cond is 0xF
-            UNREACHABLE_MSG("invalid condition code 0x%X", cond);
+            UNREACHABLE_MSG("invalid condition code 0x{:X}", cond);
     }
 }

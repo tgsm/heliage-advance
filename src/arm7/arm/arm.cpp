@@ -126,7 +126,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 SetRegister(rd, ~rotated_operand);
                 break;
             default:
-                UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X w/ immediate", op);
+                UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ immediate", op);
         }
     } else {
         u8 shift = (op2 >> 4) & 0xFF;
@@ -187,7 +187,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     SetRegister(rd, ~shifted_operand);
                     break;
                 default:
-                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X w/ register", op);
+                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register", op);
             }
         } else if ((shift & 0b1001) == 0b0001) {
             u8 rs = (shift >> 4) & 0xF;
@@ -198,7 +198,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     SetRegister(rd, Shift(GetRegister(rm), shift_type, GetRegister(rs)));
                     break;
                 default:
-                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x%X w/ register and barrel shifter", op);
+                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register and barrel shifter", op);
             }
         } else {
             ASSERT(false);
@@ -344,7 +344,7 @@ void ARM7::ARM_BranchAndExchange(const u32 opcode) {
 
     // If bit 0 of Rn is set, we switch to THUMB mode. Else, we switch to ARM mode.
     cpsr.flags.thumb_mode = GetRegister(rn) & 0b1;
-    LDEBUG("thumb: %u", cpsr.flags.thumb_mode);
+    LDEBUG("thumb: {}", cpsr.flags.thumb_mode);
 
     SetPC(GetRegister(rn) & ~0b1);
 }
@@ -363,7 +363,7 @@ void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
             ARM_StoreHalfwordRegister(opcode, sign);
             break;
         default:
-            UNIMPLEMENTED_MSG("unimplemented halfword data transfer register conditions 0x%X", conditions);
+            UNIMPLEMENTED_MSG("unimplemented halfword data transfer register conditions 0x{:X}", conditions);
     }
 }
 

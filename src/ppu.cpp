@@ -92,7 +92,7 @@ void PPU::RenderScanline() {
 
             break;
         default:
-            LERROR("PPU: unimplemented BG mode %u", dispcnt.flags.bg_mode);
+            LERROR("PPU: unimplemented BG mode {}", dispcnt.flags.bg_mode);
             break;
     }
 }

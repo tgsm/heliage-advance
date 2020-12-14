@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <cstdio>
 #include <filesystem>
 #include "../cartridge.h"
 #include "../gba.h"
@@ -78,25 +77,25 @@ int main_SDL(char* argv[]) {
     GBA gba(cartridge);
 
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
-        printf("failed to initialize SDL: %s", SDL_GetError());
+        LFATAL("failed to initialize SDL: {}", SDL_GetError());
         return 1;
     }
 
     window = SDL_CreateWindow("heliage-advance", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, GBA_SCREEN_WIDTH * 2, GBA_SCREEN_HEIGHT * 2, 0);
     if (!window) {
-        printf("failed to create SDL window: %s\n", SDL_GetError());
+        LFATAL("failed to create SDL window: {}", SDL_GetError());
         return 1;
     }
 
     renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer) {
-        printf("failed to create SDL renderer: %s\n", SDL_GetError());
+        LFATAL("failed to create SDL renderer: {}", SDL_GetError());
         return 1;
     }
 
     framebuffer_output = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_STREAMING, GBA_SCREEN_WIDTH, GBA_SCREEN_HEIGHT);
     if (!framebuffer_output) {
-        LFATAL("failed to create framebuffer output texture: %s", SDL_GetError());
+        LFATAL("failed to create framebuffer output texture: {}", SDL_GetError());
         return 1;
     }
 

@@ -40,7 +40,7 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
 
         case ARM_Instructions::Unknown:
         default:
-            UNIMPLEMENTED_MSG("disassembler: unhandled ARM instruction %u (opcode: %08X, pc: %08X)", static_cast<u8>(instr), opcode, GetPC() - 8);
+            UNIMPLEMENTED_MSG("disassembler: unhandled ARM instruction {} (opcode: {:08X}, pc: {:08X})", instr, opcode, GetPC() - 8);
     }
 }
 
@@ -100,7 +100,7 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
 
         case Thumb_Instructions::Unknown:
         default:
-            UNIMPLEMENTED_MSG("disassembler: unhandled THUMB instruction %u (opcode: %04X, pc: %08X)", static_cast<u8>(instr), opcode, GetPC() - 4);
+            UNIMPLEMENTED_MSG("disassembler: unhandled THUMB instruction {} (opcode: {:04X}, pc: {:08X})", instr, opcode, GetPC() - 4);
     }
 }
 
@@ -290,10 +290,10 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             }
             break;
         default:
-            UNIMPLEMENTED_MSG("disassembler: unimplemented data processing op 0x%X", op);
+            UNIMPLEMENTED_MSG("disassembler: unimplemented data processing op 0x{:X}", op);
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleMRS(const u32 opcode) {
@@ -312,7 +312,7 @@ void ARM7::ARM_DisassembleMRS(const u32 opcode) {
         disasm += "CPSR";
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only) {
@@ -347,7 +347,7 @@ void ARM7::ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only) {
         disasm += fmt::format("{}_all, R{}", destination_is_spsr ? "SPSR" : "CPSR", rm);
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleMultiply(const u32 opcode) {
@@ -378,7 +378,7 @@ void ARM7::ARM_DisassembleMultiply(const u32 opcode) {
         disasm += fmt::format(" R{}, R{}, R{}", rd, rm, rs);
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
@@ -412,7 +412,7 @@ void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
 
     disasm += fmt::format(" R{}, R{}, R{}, R{}", rdlo, rdhi, rm, rs);
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleSingleDataSwap(const u32 opcode) {
@@ -431,7 +431,7 @@ void ARM7::ARM_DisassembleSingleDataSwap(const u32 opcode) {
 
     disasm += fmt::format(" R{}, R{}, [R{}]", rd, rm, rn);
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleBranchAndExchange(const u32 opcode) {
@@ -441,7 +441,7 @@ void ARM7::ARM_DisassembleBranchAndExchange(const u32 opcode) {
 
     disasm += fmt::format("BX{} R{}", GetConditionCode(cond), rn);
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode) {
@@ -500,7 +500,7 @@ void ARM7::ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode) {
         disasm += fmt::format("R{}", rm);
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
@@ -565,7 +565,7 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
         disasm += fmt::format("0x{:02X}", offset);
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
@@ -665,7 +665,7 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
         disasm += "!";
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleBlockDataTransfer(const u32 opcode) {
@@ -747,7 +747,7 @@ void ARM7::ARM_DisassembleBlockDataTransfer(const u32 opcode) {
         disasm += "^";
     }
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleBranch(const u32 opcode) {
@@ -769,7 +769,7 @@ void ARM7::ARM_DisassembleBranch(const u32 opcode) {
 
     disasm += fmt::format(" 0x{:08X}", GetPC() + offset);
 
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::ARM_DisassembleSoftwareInterrupt(const u32 opcode) {
@@ -777,7 +777,7 @@ void ARM7::ARM_DisassembleSoftwareInterrupt(const u32 opcode) {
     const u32 comment = opcode & 0xFFFFFF;
 
     std::string disasm = fmt::format("SWI{} 0x{:X}", GetConditionCode(cond), comment);
-    LTRACE_ARM("%s", disasm.c_str());
+    LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleMoveShiftedRegister(const u16 opcode) {
@@ -793,7 +793,7 @@ void ARM7::Thumb_DisassembleMoveShiftedRegister(const u16 opcode) {
 
     disasm += fmt::format(" R{}, R{}, #{}", rd, rs, offset);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleAddSubtract(const u16 opcode) {
@@ -819,7 +819,7 @@ void ARM7::Thumb_DisassembleAddSubtract(const u16 opcode) {
         disasm += fmt::format("R{}", rn);
     }
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleMoveCompareAddSubtractImmediate(const u16 opcode) {
@@ -833,7 +833,7 @@ void ARM7::Thumb_DisassembleMoveCompareAddSubtractImmediate(const u16 opcode) {
 
     disasm += fmt::format(" R{}, #0x{:02X}", rd, offset);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleALUOperations(const u16 opcode) {
@@ -849,7 +849,7 @@ void ARM7::Thumb_DisassembleALUOperations(const u16 opcode) {
 
     disasm += fmt::format(" R{}, R{}", rd, rs);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleHiRegisterOperationsBranchExchange(const u16 opcode) {
@@ -873,14 +873,14 @@ void ARM7::Thumb_DisassembleHiRegisterOperationsBranchExchange(const u16 opcode)
         disasm += fmt::format("R{}", h2 ? rs_hs + 8 : rs_hs);
     }
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassemblePCRelativeLoad(const u16 opcode) {
     const u8 rd = (opcode >> 8) & 0x7;
     const u8 imm = opcode & 0xFF;
 
-    LTRACE_THUMB("LDR R%u, [R15, #0x%08X]", rd, imm);
+    LTRACE_THUMB("LDR R{}, [R15, #0x{:08X}]", rd, imm);
 }
 
 void ARM7::Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode) {
@@ -903,7 +903,7 @@ void ARM7::Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode) {
 
     disasm += fmt::format(" R{}, [R{}, R{}]", rd, rb, ro);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode) {
@@ -930,7 +930,7 @@ void ARM7::Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode) 
 
     disasm += fmt::format(" R{}, [R{}, R{}]", rd, rb, ro);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode) {
@@ -953,7 +953,7 @@ void ARM7::Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode) {
 
     disasm += fmt::format(" R{}, [R{}, #0x{:02X}]", rd, rb, offset);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
@@ -971,7 +971,7 @@ void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
 
     disasm += fmt::format(" R{}, [R{}, #0x{:X}]", rd, rb, imm);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 // TODO: Thumb SP-relative load/store
@@ -992,7 +992,7 @@ void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
 
     disasm += fmt::format(", #0x{:X}", imm << 2);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode) {
@@ -1006,7 +1006,7 @@ void ARM7::Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode) {
     }
     disasm += fmt::format("0x{:02X}", imm);
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
@@ -1035,7 +1035,7 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
     if (set_bits.empty()) {
         if (!store_lr_load_pc) {
             disasm += "}";
-            LTRACE_THUMB("%s", disasm.c_str());
+            LTRACE_THUMB("{}", disasm);
             return;
         }
 
@@ -1045,7 +1045,7 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
             disasm += "LR}";
         }
 
-        LTRACE_THUMB("%s", disasm.c_str());
+        LTRACE_THUMB("{}", disasm);
         return;
     }
 
@@ -1066,7 +1066,7 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
         disasm += "}";
     }
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleMultipleLoadStore(const u16 opcode) {
@@ -1103,7 +1103,7 @@ void ARM7::Thumb_DisassembleMultipleLoadStore(const u16 opcode) {
 
     disasm += "}";
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleConditionalBranch(const u16 opcode) {
@@ -1120,7 +1120,7 @@ void ARM7::Thumb_DisassembleConditionalBranch(const u16 opcode) {
 
     disasm += fmt::format(" 0x{:08X}", GetPC() + (offset * 2));
 
-    LTRACE_THUMB("%s", disasm.c_str());
+    LTRACE_THUMB("{}", disasm);
 }
 
 // TODO: Thumb-mode software interrupt
@@ -1132,7 +1132,7 @@ void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
     offset <<= 4;
     offset >>= 4;
 
-    LTRACE_THUMB("B 0x%08X", GetPC() + offset);
+    LTRACE_THUMB("B 0x{:08X}", GetPC() + offset);
 }
 
 void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
@@ -1156,6 +1156,6 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
     pc = lr + (offset_low << 1);
     lr = GetPC() | 0b1;
 
-    LDEBUG("LR=%08X", lr);
-    LTRACE_DOUBLETHUMB("BX 0x%08X", pc);
+    LDEBUG("LR={:08X}", lr);
+    LTRACE_DOUBLETHUMB("BX 0x{:08X}", pc);
 }

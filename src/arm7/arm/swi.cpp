@@ -1,7 +1,7 @@
 #include "arm7/arm7.h"
 
 void ARM7::ARM_SoftwareInterrupt(const u32 opcode) {
-    // LDEBUG("ARM-mode SWI at %08X", GetPC() - 8);
+    // LDEBUG("ARM-mode SWI at {:08X}", GetPC() - 8);
     // cpsr.flags.processor_mode = ProcessorMode::Supervisor;
     // SetLR(GetPC() - 4);
     // cpsr.flags.irq = true;
@@ -15,7 +15,7 @@ void ARM7::ARM_SoftwareInterrupt(const u32 opcode) {
             break;
 
         default:
-            UNIMPLEMENTED_MSG("unimplemented software interrupt 0x%02X", interrupt);
+            UNIMPLEMENTED_MSG("unimplemented software interrupt 0x{:02X}", interrupt);
     }
 }
 
