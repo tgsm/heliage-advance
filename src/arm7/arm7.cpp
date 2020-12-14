@@ -281,6 +281,8 @@ u32 ARM7::Shift_LSR(const u64 operand_to_shift, const u8 shift_amount) {
 }
 
 u32 ARM7::Shift_ASR(const u64 operand_to_shift, const u8 shift_amount) {
+    bool msb = (operand_to_shift & (1 << 31));
+
     if (shift_amount >= 32) {
         if (shift_amount == 32) {
             cpsr.flags.carry = operand_to_shift & (1 << 31);
@@ -288,11 +290,16 @@ u32 ARM7::Shift_ASR(const u64 operand_to_shift, const u8 shift_amount) {
             cpsr.flags.carry = false;
         }
 
-        return 0;
+        return msb ? 0xFFFFFFFF : 0;
     }
 
     cpsr.flags.carry = ((operand_to_shift >> (shift_amount - 1)) & 0b1);
-    return static_cast<s64>(operand_to_shift) >> shift_amount;
+
+    u32 result = operand_to_shift >> shift_amount;
+    for (u8 i = 31; i > 31 - shift_amount; i--) {
+        result |= (msb << i);
+    }
+    return result;
 }
 
 u32 ARM7::Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount) {
