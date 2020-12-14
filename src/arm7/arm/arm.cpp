@@ -134,6 +134,11 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
         if ((shift & 0b1) == 0) {
             u8 shift_amount = (shift >> 3) & 0x1F;
             ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
+
+            if (!shift_amount && shift_type != ShiftType::LSL) {
+                shift_amount = 32;
+            }
+
             u32 shifted_operand = Shift(GetRegister(rm), shift_type, shift_amount);
 
             switch (op) {

@@ -190,9 +190,13 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                     u16 shift_amount = (shift >> 3) & 0x1F;
                     u8 shift_type = (shift >> 1) & 0b11;
 
-                    if (!shift_amount) {
+                    if (!shift_amount && !shift_type) {
                         disasm += fmt::format("R{}", rm);
                     } else {
+                        if (!shift_amount) {
+                            shift_amount = 32;
+                        }
+
                         disasm += fmt::format("R{}, ", rm);
 
                         constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
