@@ -188,6 +188,17 @@ u32 MMU::Read32(u32 addr) {
                     return 0xFFFFFFFF;
             }
 
+        case 0x6: {
+            u32 address = masked_addr & 0x1FFFF;
+            if (address > 0x17FFF) {
+                address -= 0x8000;
+            }
+
+            u32 value = ppu.ReadVRAM<u32>(address);
+            LDEBUG("read32 0x{:08X} from 0x{:08X} (VRAM)", value, masked_addr);
+            return value;
+        }
+
         case 0x8:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
                 // TODO: open bus?
