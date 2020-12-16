@@ -1161,5 +1161,5 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
     lr = GetPC() | 0b1;
 
     LDEBUG("LR={:08X}", lr);
-    LTRACE_DOUBLETHUMB("BX 0x{:08X}", pc);
+    LTRACE_DOUBLETHUMB("BL 0x{:08X}", pc);
 }
