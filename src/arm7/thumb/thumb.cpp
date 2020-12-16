@@ -136,6 +136,12 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
         case 0x3: // LSR
             SetRegister(rd, Shift(GetRegister(rd), ShiftType::LSR, GetRegister(rs)));
             break;
+        case 0x4: // ASR
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::ASR, GetRegister(rs)));
+            break;
+        case 0x5: // ADC
+            SetRegister(rd, ADC(GetRegister(rd), GetRegister(rs), true));
+            break;
         case 0x7: // ROR
             SetRegister(rd, Shift(GetRegister(rd), ShiftType::ROR, GetRegister(rs)));
             break;
