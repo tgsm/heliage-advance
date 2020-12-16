@@ -66,18 +66,15 @@ void ARM7::Thumb_AddSubtract(const u16 opcode) {
 
     if (subtracting) {
         if (operand_is_immediate) {
-            cpsr.flags.carry = GetRegister(rs) < rn_or_immediate;
-            SetRegister(rd, GetRegister(rs) - rn_or_immediate);
+            SetRegister(rd, SUB(GetRegister(rs), rn_or_immediate, true));
         } else {
-            cpsr.flags.carry = GetRegister(rs) < GetRegister(rn_or_immediate);
-            SetRegister(rd, GetRegister(rs) - GetRegister(rn_or_immediate));
+            SetRegister(rd, SUB(GetRegister(rs), GetRegister(rn_or_immediate), true));
         }
     } else {
-        LWARN("need to implement the carry flag for thumb add");
         if (operand_is_immediate) {
-            SetRegister(rd, GetRegister(rs) + rn_or_immediate);
+            SetRegister(rd, ADD(GetRegister(rs), rn_or_immediate, true));
         } else {
-            SetRegister(rd, GetRegister(rs) + GetRegister(rn_or_immediate));
+            SetRegister(rd, ADD(GetRegister(rs), GetRegister(rn_or_immediate), true));
         }
     }
 }
@@ -95,10 +92,10 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
             cpsr.flags.zero = (GetRegister(rd) == offset);
             return;
         case 0x2:
-            SetRegister(rd, GetRegister(rd) + offset);
+            SetRegister(rd, ADD(GetRegister(rd), offset, true));
             break;
         case 0x3:
-            SetRegister(rd, GetRegister(rd) - offset);
+            SetRegister(rd, SUB(GetRegister(rd), offset, true));
             break;
 
         default:
@@ -139,16 +136,12 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
         case 0x9: // NEG
             SetRegister(rd, -GetRegister(rs));
             break;
-        case 0xA: { // CMP
-            u32 result = GetRegister(rd) - GetRegister(rs);
-            cpsr.flags.zero = (result == 0);
+        case 0xA: // CMP
+            CMP(GetRegister(rd), GetRegister(rs));
             return;
-        }
-        case 0xB: { // CMN
-            u32 result = GetRegister(rd) + GetRegister(rs);
-            cpsr.flags.zero = (result == 0);
+        case 0xB: // CMN
+            CMN(GetRegister(rd), GetRegister(rs));
             return;
-        }
         case 0xC: // ORR
             SetRegister(rd, GetRegister(rd) | GetRegister(rs));
             break;
@@ -195,6 +188,9 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
                 SetPC((GetPC() - 2) & ~0b1);
             }
             break;
+        case 0x1:
+            CMP(GetRegister(rd_hd), GetRegister(rs_hs));
+            return;
         case 0x2:
             SetRegister(rd_hd, GetRegister(rs_hs));
             // If we're setting R15 through here, we need to halfword align it
@@ -208,7 +204,7 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
             SetPC(GetRegister(rs_hs) & ~0b1);
             return;
         default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb hi reg op 0x{:X}", op);
+            UNREACHABLE();
     }
 
     cpsr.flags.negative = (GetRegister(rd_hd) & (1 << 31));

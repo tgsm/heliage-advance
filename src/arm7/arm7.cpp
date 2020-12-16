@@ -338,6 +338,36 @@ u32 ARM7::ADD(const u32 operand1, const u32 operand2, const bool change_flags) {
     return result;
 }
 
+void ARM7::CMN(const u32 operand1, const u32 operand2) {
+    u32 result = operand1 + operand2;
+
+    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.zero = (result == 0);
+    cpsr.flags.carry = (result < operand1);
+    cpsr.flags.overflow = ((operand1 ^ result) & (operand2 ^ result)) >> 31;
+}
+
+void ARM7::CMP(const u32 operand1, const u32 operand2) {
+    u32 result = operand1 - operand2;
+
+    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.zero = (result == 0);
+    cpsr.flags.carry = (result < operand1);
+    cpsr.flags.overflow = ((operand1 ^ result) & (~operand2 ^ result)) >> 31;
+}
+
+u32 ARM7::SUB(const u32 operand1, const u32 operand2, const bool change_flags) {
+    u32 result = operand1 - operand2;
+    if (change_flags) {
+        cpsr.flags.negative = (result & (1 << 31));
+        cpsr.flags.zero = (result == 0);
+        cpsr.flags.carry = (result <= operand1);
+        cpsr.flags.overflow = ((operand1 ^ result) & (~operand2 ^ result)) >> 31;
+    }
+
+    return result;
+}
+
 bool ARM7::CheckConditionCode(const u8 cond) {
     switch (cond) {
         case 0x0:

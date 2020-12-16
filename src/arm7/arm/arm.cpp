@@ -38,15 +38,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             case 0x1:
                 SetRegister(rd, GetRegister(rn) ^ rotated_operand);
                 break;
-            case 0x2: {
-                u32 result = GetRegister(rn) - rotated_operand;
-                cpsr.flags.carry = (result <= GetRegister(rn));
-                if (set_condition_codes) {
-                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (~rotated_operand ^ result)) >> 31;
-                }
-                SetRegister(rd, result);
+            case 0x2:
+                SetRegister(rd, SUB(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
-            }
             case 0x3: {
                 u32 result = rotated_operand - GetRegister(rn);
                 cpsr.flags.carry = (result < GetRegister(rn));
@@ -96,23 +90,12 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
                 return;
             }
-            case 0xA: {
-                u32 result = GetRegister(rn) - rotated_operand;
-                cpsr.flags.negative = (result & (1 << 31));
-                cpsr.flags.carry = (result < GetRegister(rn));
-                cpsr.flags.zero = (result == 0);
-
+            case 0xA:
+                CMP(GetRegister(rn), rotated_operand);
                 return;
-            }
-            case 0xB: {
-                u32 result = rotated_operand + GetRegister(rn);
-                cpsr.flags.carry = (result < GetRegister(rn));
-                if (set_condition_codes) {
-                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (rotated_operand ^ result)) >> 31;
-                }
-                SetRegister(rd, result);
-                break;
-            }
+            case 0xB:
+                CMN(GetRegister(rn), rotated_operand);
+                return;
             case 0xC:
                 SetRegister(rd, GetRegister(rn) | rotated_operand);
                 break;
@@ -149,7 +132,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     SetRegister(rd, GetRegister(rn) ^ shifted_operand);
                     break;
                 case 0x2:
-                    SetRegister(rd, GetRegister(rn) - shifted_operand);
+                    SetRegister(rd, SUB(GetRegister(rn), shifted_operand, set_condition_codes));
                     break;
                 case 0x4:
                     SetRegister(rd, ADD(GetRegister(rn), shifted_operand, set_condition_codes));
@@ -163,22 +146,12 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 case 0x7:
                     SetRegister(rd, shifted_operand - GetRegister(rn) + cpsr.flags.carry - 1);
                     break;
-                case 0xA: {
-                    u32 result = GetRegister(rn) - shifted_operand;
-                    cpsr.flags.negative = (result & (1 << 31));
-                    cpsr.flags.carry = (result < GetRegister(rn));
-                    cpsr.flags.zero = (result == 0);
-
+                case 0xA:
+                    CMP(GetRegister(rn), shifted_operand);
                     return;
-                }
-                case 0xB: {
-                    u32 result = GetRegister(rn) + shifted_operand;
-                    cpsr.flags.negative = (result & (1 << 31));
-                    cpsr.flags.carry = (result < GetRegister(rn));
-                    cpsr.flags.zero = (result == 0);
-
+                case 0xB:
+                    CMN(GetRegister(rn), shifted_operand);
                     return;
-                }
                 case 0xC:
                     SetRegister(rd, GetRegister(rn) | shifted_operand);
                     break;
