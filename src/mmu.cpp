@@ -15,6 +15,17 @@ u8 MMU::Read8(u32 addr) {
             return value;
         }
 
+        case 0x4:
+            switch (masked_addr) {
+                case 0x4000006:
+                    return ppu.GetVCOUNT();
+                default:
+                    LERROR("unrecognized read8 from IO register 0x{:08X}", masked_addr);
+                    return 0xFF;
+            }
+
+            return 0xFF;
+
         case 0x6: {
             u32 address = masked_addr & 0x1FFFF;
             if (address > 0x17FFF) {
@@ -70,6 +81,8 @@ u16 MMU::Read16(u32 addr) {
             switch (masked_addr) {
                 case 0x4000004:
                     return ppu.GetDISPSTAT();
+                case 0x4000006:
+                    return ppu.GetVCOUNT();
                 case 0x4000130: // Keypad input
                     return keypad.GetState();
                 default:
