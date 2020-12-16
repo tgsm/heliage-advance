@@ -21,10 +21,14 @@ void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
 }
 
 void ARM7::Thumb_LSL(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
+    u8 offset = (opcode >> 6) & 0x1F;
     const u8 rs = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
     const u32 source = GetRegister(rs);
+
+    if (!offset) {
+        offset = 32;
+    }
 
     SetRegister(rd, Shift(source, ShiftType::LSL, offset));
 
@@ -33,10 +37,14 @@ void ARM7::Thumb_LSL(const u16 opcode) {
 }
 
 void ARM7::Thumb_LSR(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
+    u8 offset = (opcode >> 6) & 0x1F;
     const u8 rs = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
     const u32 source = GetRegister(rs);
+
+    if (!offset) {
+        offset = 32;
+    }
 
     SetRegister(rd, Shift(source, ShiftType::LSR, offset));
 
@@ -45,10 +53,14 @@ void ARM7::Thumb_LSR(const u16 opcode) {
 }
 
 void ARM7::Thumb_ASR(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
+    u8 offset = (opcode >> 6) & 0x1F;
     const u8 rs = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
     const u32 source = GetRegister(rs);
+
+    if (!offset) {
+        offset = 32;
+    }
 
     SetRegister(rd, Shift(source, ShiftType::ASR, offset));
 

@@ -786,9 +786,13 @@ void ARM7::ARM_DisassembleSoftwareInterrupt(const u32 opcode) {
 
 void ARM7::Thumb_DisassembleMoveShiftedRegister(const u16 opcode) {
     const u8 op = (opcode >> 11) & 0x3;
-    const u8 offset = (opcode >> 6) & 0x1F;
+    u8 offset = (opcode >> 6) & 0x1F;
     const u8 rs = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
+
+    if (!offset) {
+        offset = 32;
+    }
 
     std::string disasm;
 
