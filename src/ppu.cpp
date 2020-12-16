@@ -83,9 +83,16 @@ void PPU::RenderScanline() {
     }
 
     switch (dispcnt.flags.bg_mode) {
+        case 3:
+            for (std::size_t i = 0; i < 240; i++) {
+                u16 color = ReadVRAM<u16>((vcount * 240 * sizeof(u16)) + i * sizeof(u16));
+                framebuffer.at(vcount * 240 + i) = color;
+            }
+
+            break;
         case 4:
             for (std::size_t i = 0; i < 240; i++) {
-                u8 palette_index = vram.at((vcount * 240) + i) * 2;
+                u8 palette_index = vram.at((vcount * 240) + i) * sizeof(u16);
                 u16 color = ReadPRAM(palette_index);
                 framebuffer.at((vcount * 240) + i) = color;
             }
