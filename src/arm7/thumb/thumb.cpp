@@ -369,7 +369,7 @@ void ARM7::Thumb_LoadAddress(const u16 opcode) {
     const u8 rd = (opcode >> 8) & 0x7;
     const u8 imm = opcode & 0xFF;
 
-    SetRegister(rd, (imm << 2) + (load_from_sp ? GetSP() : GetPC()));
+    SetRegister(rd, (imm << 2) + (load_from_sp ? GetSP() : GetPC() & ~0b11));
 }
 
 void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
