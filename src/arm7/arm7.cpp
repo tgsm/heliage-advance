@@ -373,6 +373,14 @@ u32 ARM7::SUB(const u32 operand1, const u32 operand2, const bool change_flags) {
     return result;
 }
 
+void ARM7::TEQ(const u32 operand1, const u32 operand2) {
+    u32 result = operand1 ^ operand2;
+
+    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.zero = (result == 0);
+    // carry flag?
+}
+
 bool ARM7::CheckConditionCode(const u8 cond) {
     switch (cond) {
         case 0x0:

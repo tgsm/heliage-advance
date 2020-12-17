@@ -82,14 +82,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
                 return;
             }
-            case 0x9: {
-                u32 result = GetRegister(rn) ^ rotated_operand;
-                cpsr.flags.negative = (result & (1 << 31));
-                cpsr.flags.carry = (result < GetRegister(rn));
-                cpsr.flags.zero = (result == 0);
-
+            case 0x9:
+                TEQ(GetRegister(rn), rotated_operand);
                 return;
-            }
             case 0xA:
                 CMP(GetRegister(rn), rotated_operand);
                 return;
@@ -146,6 +141,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 case 0x7:
                     SetRegister(rd, shifted_operand - GetRegister(rn) + cpsr.flags.carry - 1);
                     break;
+                case 0x9:
+                    TEQ(GetRegister(rn), shifted_operand);
+                    return;
                 case 0xA:
                     CMP(GetRegister(rn), shifted_operand);
                     return;

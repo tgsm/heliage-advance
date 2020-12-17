@@ -215,6 +215,7 @@ private:
     void CMN(const u32 operand1, const u32 operand2);
     void CMP(const u32 operand1, const u32 operand2);
     u32 SUB(const u32 operand1, const u32 operand2, const bool change_flags);
+    void TEQ(const u32 operand1, const u32 operand2);
 
     bool CheckConditionCode(const u8 cond);
     std::string GetConditionCode(const u8 cond);
