@@ -179,6 +179,9 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
         case Thumb_Instructions::LoadStoreHalfword:
             Thumb_LoadStoreHalfword(opcode);
             break;
+        case Thumb_Instructions::SPRelativeLoadStore:
+            Thumb_SPRelativeLoadStore(opcode);
+            break;
         case Thumb_Instructions::LoadAddress:
             Thumb_LoadAddress(opcode);
             break;

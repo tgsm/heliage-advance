@@ -357,7 +357,8 @@ private:
     void Thumb_LoadStoreHalfword(const u16 opcode);
     void Thumb_DisassembleLoadStoreHalfword(const u16 opcode);
 
-    // TODO: SP-relative load/store
+    void Thumb_SPRelativeLoadStore(const u16 opcode);
+    void Thumb_DisassembleSPRelativeLoadStore(const u16 opcode);
 
     void Thumb_LoadAddress(const u16 opcode);
     void Thumb_DisassembleLoadAddress(const u16 opcode);

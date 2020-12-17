@@ -76,6 +76,9 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         case Thumb_Instructions::LoadStoreHalfword:
             Thumb_DisassembleLoadStoreHalfword(opcode);
             break;
+        case Thumb_Instructions::SPRelativeLoadStore:
+            Thumb_DisassembleSPRelativeLoadStore(opcode);
+            break;
         case Thumb_Instructions::LoadAddress:
             Thumb_DisassembleLoadAddress(opcode);
             break;
@@ -982,7 +985,22 @@ void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
     LTRACE_THUMB("{}", disasm);
 }
 
-// TODO: Thumb SP-relative load/store
+void ARM7::Thumb_DisassembleSPRelativeLoadStore(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const u8 rd = (opcode >> 8) & 0x7;
+    const u8 imm = opcode & 0xFF;
+    std::string disasm;
+
+    if (load_from_memory) {
+        disasm += "LDR";
+    } else {
+        disasm += "STR";
+    }
+
+    disasm += fmt::format(" R{}, [SP, #0x{:X}]", rd, imm << 2);
+
+    LTRACE_THUMB("{}", disasm);
+}
 
 void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
     const bool load_from_sp = (opcode >> 11) & 0b1;

@@ -362,7 +362,17 @@ void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
     }
 }
 
-// TODO: Thumb SP-relative load/store
+void ARM7::Thumb_SPRelativeLoadStore(const u16 opcode) {
+    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const u8 rd = (opcode >> 8) & 0x7;
+    const u8 imm = opcode & 0xFF;
+
+    if (load_from_memory) {
+        SetRegister(rd, mmu.Read32(GetSP() + (imm << 2)));
+    } else {
+        mmu.Write32(GetSP() + (imm << 2), GetRegister(rd));
+    }
+}
 
 void ARM7::Thumb_LoadAddress(const u16 opcode) {
     const bool load_from_sp = (opcode >> 11) & 0b1;
