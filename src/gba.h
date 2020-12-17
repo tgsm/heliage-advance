@@ -1,6 +1,7 @@
 #pragma once
 
 #include "arm7/arm7.h"
+#include "bios.h"
 #include "cartridge.h"
 #include "keypad.h"
 #include "mmu.h"
@@ -8,7 +9,7 @@
 
 class GBA {
 public:
-    GBA(Cartridge& cartridge);
+    GBA(BIOS& bios, Cartridge& cartridge);
 
     void Run();
 private:

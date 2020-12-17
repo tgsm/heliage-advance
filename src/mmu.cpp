@@ -1,8 +1,8 @@
 #include "logging.h"
 #include "mmu.h"
 
-MMU::MMU(Cartridge& cartridge, Keypad& keypad, PPU& ppu)
-    : cartridge(cartridge), keypad(keypad), ppu(ppu) {
+MMU::MMU(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu)
+    : bios(bios), cartridge(cartridge), keypad(keypad), ppu(ppu) {
     wram.fill(0x00);
 }
 

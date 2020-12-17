@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include "bios.h"
 #include "cartridge.h"
 #include "keypad.h"
 #include "ppu.h"
@@ -8,7 +9,7 @@
 
 class MMU {
 public:
-    MMU(Cartridge& cartridge, Keypad& keypad, PPU& ppu);
+    MMU(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu);
 
     u8 Read8(u32 addr);
     void Write8(u32 addr, u8 value);
@@ -20,6 +21,7 @@ public:
     Keypad& GetKeypad() { return keypad; }
     const Keypad& GetKeypad() const { return keypad; }
 private:
+    BIOS& bios;
     Cartridge& cartridge;
     Keypad& keypad;
     PPU& ppu;

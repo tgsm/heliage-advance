@@ -71,10 +71,12 @@ void Shutdown() {
 }
 
 int main_SDL(char* argv[]) {
-    const std::filesystem::path cartridge_path = argv[1];
+    const std::filesystem::path bios_path = argv[1];
+    const std::filesystem::path cartridge_path = argv[2];
+    BIOS bios(bios_path);
     Cartridge cartridge(cartridge_path);
 
-    GBA gba(cartridge);
+    GBA gba(bios, cartridge);
 
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         LFATAL("failed to initialize SDL: {}", SDL_GetError());

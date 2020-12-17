@@ -28,6 +28,7 @@ set(SOURCES
     src/arm7/arm/arm.cpp
     src/arm7/arm/swi.cpp
     src/arm7/thumb/thumb.cpp
+    src/bios.cpp
     src/cartridge.cpp
     src/gba.cpp
     src/main.cpp
@@ -37,6 +38,7 @@ set(SOURCES
 
 set(HEADERS
     src/arm7/arm7.h
+    src/bios.h
     src/cartridge.h
     src/gba.h
     src/keypad.h

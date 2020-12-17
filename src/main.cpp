@@ -2,8 +2,8 @@
 #include "frontend/frontend.h"
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        printf("usage: %s <cartridge>\n", argv[0]);
+    if (argc != 3) {
+        printf("usage: %s <bios> <cartridge>\n", argv[0]);
         return 1;
     }
 
