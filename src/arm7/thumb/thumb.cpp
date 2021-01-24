@@ -551,27 +551,18 @@ void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
 
 void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
     const u16 next_opcode = mmu.Read16(GetPC() - 2);
-    const u16 offset = opcode & 0x7FF;
+    s16 offset = opcode & 0x7FF;
     const u16 next_offset = next_opcode & 0x7FF;
 
     u32 lr = GetLR();
     u32 pc = GetPC();
 
-    lr = pc + (offset << 12);
+    offset <<= 5;
+    lr = pc + (static_cast<s32>(offset) << 7);
 
     pc = lr + (next_offset << 1);
     lr = GetPC() | 0b1;
 
     SetLR(lr);
-
-    // FIXME: something is going wrong with this calculation.
-    // For example, sometimes we should be jumping to 0x08000210,
-    // but we're actually jumping to 0x08800210, which is way out
-    // of bounds, in terms of cartridge size. No good.
-    if (pc & (1 << 23)) {
-        LERROR("thumb long branch with link reset bit 23 hack");
-        pc &= ~(1 << 23);
-    }
-
     SetPC(pc);
 }

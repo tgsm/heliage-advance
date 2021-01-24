@@ -1165,8 +1165,8 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
     const u16 next_opcode = mmu.Read16(GetPC() - 2);
     // Used for LTRACE_DOUBLETHUMB
     const u32 double_opcode = (static_cast<u32>(opcode) << 16) | next_opcode;
-    const u16 offset_high = opcode & 0x7FF;
-    const u16 offset_low = next_opcode & 0x7FF;
+    s16 offset = opcode & 0x7FF;
+    const u16 next_offset = next_opcode & 0x7FF;
 
     u32 lr = GetLR();
     u32 pc = GetPC();
@@ -1174,12 +1174,13 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
     const bool first_instruction = ((opcode >> 11) & 0b1) == 0b0;
     ASSERT(first_instruction);
 
-    lr = pc + (offset_high << 12);
+    offset <<= 5;
+    lr = pc + (static_cast<s32>(offset) << 7);
 
     const bool second_instruction = ((next_opcode >> 11) & 0b1) == 0b1;
     ASSERT(second_instruction);
 
-    pc = lr + (offset_low << 1);
+    pc = lr + (next_offset << 1);
     lr = GetPC() | 0b1;
 
     LDEBUG("LR={:08X}", lr);
