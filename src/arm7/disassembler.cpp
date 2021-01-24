@@ -223,7 +223,10 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             }
 
             break;
-        case 0x8 ... 0xB: // TST, TEQ, CMP, CMN
+        case 0x8: // TST
+        case 0x9: // TEQ
+        case 0xA: // CMP
+        case 0xB: // CMN
             disasm += fmt::format(" R{}, ", rn);
 
             if (op2_is_immediate) {
@@ -257,7 +260,14 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             }
 
             break;
-        case 0x0 ... 0x7: // AND, EOR, SUB, RSB, ADD, ADC, SBC, RSC
+        case 0x0: // AND
+        case 0x1: // EOR
+        case 0x2: // SUB
+        case 0x3: // RSB
+        case 0x4: // ADD
+        case 0x5: // ADC
+        case 0x6: // SBC
+        case 0x7: // RSC
         case 0xC: // ORR
         case 0xE: // BIC
             if (set_condition_codes) {
