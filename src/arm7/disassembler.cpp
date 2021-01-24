@@ -146,12 +146,12 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
     }
 
     if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
-        ARM_DisassembleMSR(opcode, false);
+        ARM_DisassembleMSR<false>(opcode);
         return;
     }
 
     if ((opcode & 0x0DBFF000) == 0x0128F000) {
-        ARM_DisassembleMSR(opcode, true);
+        ARM_DisassembleMSR<true>(opcode);
         return;
     }
 
@@ -332,14 +332,15 @@ void ARM7::ARM_DisassembleMRS(const u32 opcode) {
     LTRACE_ARM("{}", disasm);
 }
 
-void ARM7::ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only) {
+template <bool flag_bits_only>
+void ARM7::ARM_DisassembleMSR(const u32 opcode) {
     const u8 cond = (opcode >> 28) & 0xF;
     const bool destination_is_spsr = (opcode >> 22) & 0b1;
     std::string disasm;
 
     disasm += fmt::format("MSR{} ", GetConditionCode(cond));
 
-    if (flag_bits_only) {
+    if constexpr (flag_bits_only) {
         const bool operand_is_immediate = (opcode >> 25) & 0b1;
         const u16 source_operand = opcode & 0xFFF;
 

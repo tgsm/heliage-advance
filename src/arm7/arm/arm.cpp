@@ -10,12 +10,12 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     }
 
     if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
-        ARM_MSR(opcode, false);
+        ARM_MSR<false>(opcode);
         return;
     }
 
     if ((opcode & 0x0DBFF000) == 0x0128F000) {
-        ARM_MSR(opcode, true);
+        ARM_MSR<true>(opcode);
         return;
     }
 
@@ -198,7 +198,8 @@ void ARM7::ARM_MRS(const u32 opcode) {
     }
 }
 
-void ARM7::ARM_MSR(const u32 opcode, const bool flag_bits_only) {
+template <bool flag_bits_only>
+void ARM7::ARM_MSR(const u32 opcode) {
     // TODO: from starbreeze:
     // "you might have to add some things to your msr later. (e.g. you can't change
     // control bits in User mode, there's a mask field that controls access to the
@@ -209,7 +210,7 @@ void ARM7::ARM_MSR(const u32 opcode, const bool flag_bits_only) {
 
     const bool destination_is_spsr = (opcode >> 22) & 0b1;
 
-    if (flag_bits_only) {
+    if constexpr (flag_bits_only) {
         const bool operand_is_immediate = (opcode >> 25) & 0b1;
         const u16 source_operand = opcode & 0xFFF;
 

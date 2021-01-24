@@ -273,8 +273,10 @@ private:
 
     void ARM_MRS(const u32 opcode);
     void ARM_DisassembleMRS(const u32 opcode);
-    void ARM_MSR(const u32 opcode, const bool flag_bits_onl);
-    void ARM_DisassembleMSR(const u32 opcode, const bool flag_bits_only);
+    template <bool flag_bits_only>
+    void ARM_MSR(const u32 opcode);
+    template <bool flag_bits_only>
+    void ARM_DisassembleMSR(const u32 opcode);
 
     void ARM_Multiply(const u32 opcode);
     void ARM_DisassembleMultiply(const u32 opcode);
