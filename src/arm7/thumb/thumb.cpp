@@ -274,7 +274,7 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
                 return;
             }
 
-            for (u8 i = 16; i < 31; i++) {
+            for (u8 i = 16; i <= 31; i++) {
                 SetRegister(rd, GetRegister(rd) | (1 << i));
             }
         } else {
@@ -285,7 +285,7 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
                 return;
             }
 
-            for (u8 i = 8; i < 31; i++) {
+            for (u8 i = 8; i <= 31; i++) {
                 SetRegister(rd, GetRegister(rd) | (1 << i));
             }
         }
@@ -322,7 +322,7 @@ void ARM7::Thumb_StoreByteWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    mmu.Write8(GetRegister(rd), GetRegister(rb) + offset);
+    mmu.Write8(GetRegister(rb) + offset, GetRegister(rd));
 }
 
 void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
@@ -338,7 +338,7 @@ void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    mmu.Write32(GetRegister(rd), GetRegister(rb) + offset);
+    mmu.Write32(GetRegister(rb) + (offset << 2), GetRegister(rd));
 }
 
 void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
@@ -346,7 +346,7 @@ void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    SetRegister(rd, mmu.Read32(GetRegister(rb) + offset));
+    SetRegister(rd, mmu.Read32(GetRegister(rb) + (offset << 2)));
 }
 
 void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
@@ -356,9 +356,9 @@ void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
     const u8 rd = opcode & 0x7;
 
     if (load_from_memory) {
-        SetRegister(rd, mmu.Read16(GetRegister(rb) + imm));
+        SetRegister(rd, mmu.Read16(GetRegister(rb) + (imm << 1)));
     } else {
-        mmu.Write16(GetRegister(rb) + imm, static_cast<u16>(GetRegister(rd)));
+        mmu.Write16(GetRegister(rb) + (imm << 1), static_cast<u16>(GetRegister(rd)));
     }
 }
 
@@ -387,9 +387,9 @@ void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
     const u8 imm = opcode & 0x7F;
 
     if (offset_is_negative) {
-        SetSP(GetSP() - imm);
+        SetSP(GetSP() - (imm << 2));
     } else {
-        SetSP(GetSP() + imm);
+        SetSP(GetSP() + (imm << 2));
     }
 }
 

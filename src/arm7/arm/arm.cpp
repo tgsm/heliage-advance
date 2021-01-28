@@ -410,7 +410,7 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
     const u8 rd = (opcode >> 12) & 0xF;
     const u8 offset_high = (opcode >> 8) & 0xF;
     const u8 offset_low = opcode & 0xF;
-    const u8 offset = (offset_high << 8) | offset_low;
+    const u8 offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
     if (pre_indexing) {
@@ -454,7 +454,7 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
     const u8 rd = (opcode >> 12) & 0xF;
     const u8 offset_high = (opcode >> 8) & 0xF;
     const u8 offset_low = opcode & 0xF;
-    const u8 offset = (offset_high << 8) | offset_low;
+    const u8 offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
     u16 value = GetRegister(rd) & 0xFFFF;
@@ -490,7 +490,7 @@ void ARM7::ARM_LoadSignedByte(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
     const s8 offset_high = (opcode >> 8) & 0xF;
     const s8 offset_low = opcode & 0xF;
-    const s8 offset = (offset_high << 8) | offset_low;
+    const s8 offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
     if (pre_indexing) {
