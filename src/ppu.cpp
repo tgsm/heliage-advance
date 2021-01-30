@@ -22,10 +22,12 @@ void PPU::AdvanceCycles(u8 cycles) {
 void PPU::Tick() {
     ASSERT(!scheduler_entries.empty());
 
+    const auto next_entry = scheduler_entries.front();
+
     // Check if it's time to run our scheduled function
-    if (scheduler_entries.front().first == vcycles) {
+    if (next_entry.first == vcycles) {
         // Run our scheduled function
-        scheduler_entries.front().second();
+        next_entry.second();
 
         // Remove our function from the queue
         scheduler_entries.pop_front();
