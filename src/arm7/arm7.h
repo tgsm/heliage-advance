@@ -214,6 +214,7 @@ private:
     u32 ADD(const u32 operand1, const u32 operand2, const bool change_flags);
     void CMN(const u32 operand1, const u32 operand2);
     void CMP(const u32 operand1, const u32 operand2);
+    u32 SBC(const u32 operand1, const u32 operand2, const bool change_flags);
     u32 SUB(const u32 operand1, const u32 operand2, const bool change_flags);
     void TEQ(const u32 operand1, const u32 operand2);
 

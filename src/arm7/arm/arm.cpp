@@ -56,15 +56,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             case 0x5:
                 SetRegister(rd, ADC(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
-            case 0x6: {
-                u32 result = GetRegister(rn) - rotated_operand + cpsr.flags.carry - 1;
-                cpsr.flags.carry = (result <= GetRegister(rn));
-                if (set_condition_codes) {
-                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (~rotated_operand ^ result)) >> 31;
-                }
-                SetRegister(rd, result);
+            case 0x6:
+                SetRegister(rd, SBC(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
-            }
             case 0x7: {
                 u32 result = rotated_operand - GetRegister(rn) - 1 + cpsr.flags.carry;
                 cpsr.flags.carry = (result <= GetRegister(rn));
@@ -136,7 +130,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     SetRegister(rd, ADC(GetRegister(rn), shifted_operand, set_condition_codes));
                     break;
                 case 0x6:
-                    SetRegister(rd, GetRegister(rn) - shifted_operand + cpsr.flags.carry - 1);
+                    SetRegister(rd, SBC(GetRegister(rn), shifted_operand, set_condition_codes));
                     break;
                 case 0x7:
                     SetRegister(rd, shifted_operand - GetRegister(rn) + cpsr.flags.carry - 1);
