@@ -498,41 +498,50 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
 
     bool condition = false;
     switch (cond) {
-        case 0x0:
+        case 0x0: // EQ
             condition = cpsr.flags.zero;
             break;
-        case 0x1:
+        case 0x1: // NE
             condition = !cpsr.flags.zero;
             break;
-        case 0x2:
+        case 0x2: // CS
             condition = cpsr.flags.carry;
             break;
-        case 0x3:
+        case 0x3: // CC
             condition = !cpsr.flags.carry;
             break;
-        case 0x4:
+        case 0x4: // MI
             condition = cpsr.flags.negative;
             break;
-        case 0x5:
+        case 0x5: // PL
             condition = !cpsr.flags.negative;
             break;
-        case 0x6:
+        case 0x6: // VS
             condition = cpsr.flags.overflow;
             break;
-        case 0x7:
+        case 0x7: // VC
             condition = !cpsr.flags.overflow;
             break;
-        case 0x8:
+        case 0x8: // HI
             condition = (cpsr.flags.carry && !cpsr.flags.zero);
             break;
-        case 0x9:
+        case 0x9: // LS
             condition = (!cpsr.flags.carry || cpsr.flags.zero);
             break;
-        case 0xB:
+        case 0xA: // GE
+            condition = (cpsr.flags.negative == cpsr.flags.overflow);
+            break;
+        case 0xB: // LT
             condition = (cpsr.flags.negative != cpsr.flags.overflow);
             break;
+        case 0xC: // GT
+            condition = (!cpsr.flags.zero && (cpsr.flags.negative == cpsr.flags.overflow));
+            break;
+        case 0xD: // LE
+            condition = (cpsr.flags.zero || (cpsr.flags.negative != cpsr.flags.overflow));
+            break;
         default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb conditional branch condition 0x{:X}", cond);
+            UNREACHABLE_MSG("interpreter: invalid thumb conditional branch condition 0x{:X}", cond);
     }
 
     if (condition) {
