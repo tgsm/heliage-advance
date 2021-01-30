@@ -1,7 +1,3 @@
-#include <algorithm>
-#include <functional>
-#include <type_traits>
-#include <utility>
 #include "frontend/frontend.h"
 #include "logging.h"
 #include "mmu.h"
@@ -41,12 +37,12 @@ void PPU::ScheduleNewFunction(u64 cycles_from_now, const std::function<void()>& 
 }
 
 void PPU::StartNewScanline() {
-    ScheduleNewFunction(960, std::bind(&PPU::StartHBlank, this));
+    ScheduleNewFunction(960, [this]() { StartHBlank(); });
 }
 
 void PPU::StartHBlank() {
     dispstat.flags.hblank = true;
-    ScheduleNewFunction(272, std::bind(&PPU::EndHBlank, this));
+    ScheduleNewFunction(272, [this]() { EndHBlank(); });
 }
 
 void PPU::EndHBlank() {
