@@ -533,7 +533,7 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
     const bool sign = (opcode >> 6) & 0b1;
     const bool halfword = (opcode >> 5) & 0b1;
     const u8 offset_low = opcode & 0xF;
-    const u8 offset = (offset_high << 8) | offset_low;
+    const u8 offset = (offset_high << 4) | offset_low;
     std::string disasm;
 
     if (!sign && !halfword) {
@@ -647,7 +647,11 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
                     ASSERT(false);
                 }
             } else {
-                disasm += fmt::format("[R{}, #0x{:08X}]", rn, offset);
+                disasm += fmt::format("[R{}, #", rn);
+                if (!add_offset_to_base) {
+                    disasm += '-';
+                }
+                disasm += fmt::format("0x{:08X}]", offset);
             }
         }
     } else {
@@ -973,7 +977,7 @@ void ARM7::Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode) {
         disasm += "B";
     }
 
-    disasm += fmt::format(" R{}, [R{}, #0x{:02X}]", rd, rb, offset);
+    disasm += fmt::format(" R{}, [R{}, #0x{:02X}]", rd, rb, offset << 2);
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -1041,7 +1045,7 @@ void ARM7::Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode) {
     if (offset_is_negative) {
         disasm += "-";
     }
-    disasm += fmt::format("0x{:02X}", imm);
+    disasm += fmt::format("0x{:02X}", imm << 2);
 
     LTRACE_THUMB("{}", disasm);
 }

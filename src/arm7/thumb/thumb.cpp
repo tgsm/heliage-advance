@@ -418,8 +418,8 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
             SetPC(mmu.Read32(GetSP()) & ~0b1);
             SetSP(GetSP() + 4);
         } else {
-            mmu.Write32(GetSP(), GetLR());
             SetSP(GetSP() - 4);
+            mmu.Write32(GetSP(), GetLR());
         }
 
         return;
