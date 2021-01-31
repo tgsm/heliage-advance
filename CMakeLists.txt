@@ -25,7 +25,7 @@ set(SOURCES
     src/arm7/arm7.cpp
     src/arm7/disassembler.cpp
     src/arm7/arm/arm.cpp
-    src/arm7/arm/swi.cpp
+    src/arm7/arm/branch.cpp
     src/arm7/thumb/thumb.cpp
     src/bios.cpp
     src/cartridge.cpp
