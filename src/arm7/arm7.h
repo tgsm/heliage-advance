@@ -246,25 +246,25 @@ private:
     std::string GetConditionCode(const u8 cond);
 
     // Instruction pipeline
-    std::array<u32, 2> pipeline;
+    std::array<u32, 2> pipeline {};
 
     // General purpose registers
-    std::array<u32, 16> gpr;
+    std::array<u32, 16> gpr {};
 
     // FIQ-mode registers
-    std::array<u32, 7> fiq_r;
+    std::array<u32, 7> fiq_r {};
 
     // Supervisor-mode registers
-    std::array<u32, 2> svc_r;
+    std::array<u32, 2> svc_r = { 0x03007FE0, 0 };
 
     // Abort-mode registers
-    std::array<u32, 2> abt_r;
+    std::array<u32, 2> abt_r {};
 
     // IRQ-mode registers
-    std::array<u32, 2> irq_r;
+    std::array<u32, 2> irq_r = { 0x03007FA0, 0 };
 
     // Undefined-mode registers
-    std::array<u32, 2> und_r;
+    std::array<u32, 2> und_r = { 0x03007F00, 0 };
 
     union PSR {
         u32 raw = 0;

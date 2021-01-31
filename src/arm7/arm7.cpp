@@ -4,15 +4,7 @@
 
 ARM7::ARM7(MMU& mmu, PPU& ppu)
     : mmu(mmu), ppu(ppu) {
-    // Initialize the pipeline and registers
-    pipeline.fill(0);
-    gpr.fill(0);
-    fiq_r.fill(0);
-    svc_r.fill(0);
-    abt_r.fill(0);
-    irq_r.fill(0);
-    und_r.fill(0);
-
+    // Initialize registers
     cpsr.flags.processor_mode = ProcessorMode::System;
 
     // taken from no$gba
