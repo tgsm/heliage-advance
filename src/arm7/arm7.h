@@ -154,6 +154,8 @@ private:
         }
     }
 
+    std::string GetRegisterAsString(const u8 reg) const;
+
     enum class ARM_Instructions {
         DataProcessing,
         Multiply,
