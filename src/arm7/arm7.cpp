@@ -197,6 +197,9 @@ void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opc
         case Thumb_Instructions::ConditionalBranch:
             Thumb_ConditionalBranch(opcode);
             break;
+        case Thumb_Instructions::SoftwareInterrupt:
+            Thumb_SoftwareInterrupt(opcode);
+            break;
         case Thumb_Instructions::UnconditionalBranch:
             Thumb_UnconditionalBranch(opcode);
             break;

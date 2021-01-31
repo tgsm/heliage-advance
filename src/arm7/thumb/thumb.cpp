@@ -549,7 +549,19 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
     }
 }
 
-// TODO: Thumb-mode software interrupt
+void ARM7::Thumb_SoftwareInterrupt([[maybe_unused]] const u16 opcode) {
+    LDEBUG("Thumb-mode SWI at {:08X}", GetPC() - 4);
+
+    const u32 lr = GetPC() - 2;
+    const u32 old_cpsr = cpsr.raw;
+
+    cpsr.flags.processor_mode = ProcessorMode::Supervisor;
+    SetLR(lr);
+    cpsr.flags.thumb_mode = false;
+    cpsr.flags.irq = true;
+    SetPC(0x00000008);
+    SetSPSR(old_cpsr);
+}
 
 void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
     s16 offset = (opcode & 0x7FF) << 1;

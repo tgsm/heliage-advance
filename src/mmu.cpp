@@ -9,6 +9,9 @@ MMU::MMU(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu)
 u8 MMU::Read8(u32 addr) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
+        case 0x0:
+            return bios.Read<u8>(masked_addr & 0x3FFF);
+
         case 0x3: {
             u8 value = wram.at(masked_addr & 0x7FFF);
             LDEBUG("read8 0x{:02X} from 0x{:08X} (WRAM)", value, masked_addr);
@@ -65,6 +68,9 @@ void MMU::Write8(u32 addr, u8 value) {
 u16 MMU::Read16(u32 addr) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
+        case 0x0:
+            return bios.Read<u16>(masked_addr & 0x3FFF);
+
         case 0x3: {
             u16 value = 0;
             for (std::size_t i = 0; i < 2; i++) {
@@ -165,6 +171,9 @@ void MMU::Write16(u32 addr, u16 value) {
 u32 MMU::Read32(u32 addr) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
+        case 0x0:
+            return bios.Read<u32>(masked_addr & 0x3FFF);
+
         case 0x3: {
             u32 value = 0;
             for (std::size_t i = 0; i < 4; i++) {

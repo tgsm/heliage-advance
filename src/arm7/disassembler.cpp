@@ -94,6 +94,9 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
         case Thumb_Instructions::ConditionalBranch:
             Thumb_DisassembleConditionalBranch(opcode);
             break;
+        case Thumb_Instructions::SoftwareInterrupt:
+            Thumb_DisassembleSoftwareInterrupt(opcode);
+            break;
         case Thumb_Instructions::UnconditionalBranch:
             Thumb_DisassembleUnconditionalBranch(opcode);
             break;
@@ -1164,7 +1167,11 @@ void ARM7::Thumb_DisassembleConditionalBranch(const u16 opcode) {
     LTRACE_THUMB("{}", disasm);
 }
 
-// TODO: Thumb-mode software interrupt
+void ARM7::Thumb_DisassembleSoftwareInterrupt(const u16 opcode) {
+    const u8 comment = opcode & 0xFF;
+
+    LTRACE_THUMB("SWI 0x{:X}", comment);
+}
 
 void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
     s16 offset = (opcode & 0x7FF) << 1;

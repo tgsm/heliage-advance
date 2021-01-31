@@ -402,7 +402,8 @@ private:
     void Thumb_ConditionalBranch(const u16 opcode);
     void Thumb_DisassembleConditionalBranch(const u16 opcode);
 
-    // TODO: thumb-mode software interrupt
+    void Thumb_SoftwareInterrupt(const u16 opcode);
+    void Thumb_DisassembleSoftwareInterrupt(const u16 opcode);
 
     void Thumb_UnconditionalBranch(const u16 opcode);
     void Thumb_DisassembleUnconditionalBranch(const u16 opcode);
