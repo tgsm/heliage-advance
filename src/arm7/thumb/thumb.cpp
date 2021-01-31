@@ -296,7 +296,7 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
         if (h_flag) {
             SetRegister(rd, mmu.Read16(GetRegister(rb) + GetRegister(ro)));
         } else {
-            UNIMPLEMENTED_MSG("unimplemented thumb store (not sign-extended) halfword");
+            mmu.Write16(GetRegister(rb) + GetRegister(ro), GetRegister(rd));
         }
     }
 }
