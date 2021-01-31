@@ -180,7 +180,7 @@ void ARM7::ARM_MRS(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
 
     if (source_is_spsr) {
-        SetRegister(rd, spsr.raw);
+        SetRegister(rd, GetSPSR());
     } else {
         SetRegister(rd, cpsr.raw);
     }
@@ -207,17 +207,17 @@ void ARM7::ARM_MSR(const u32 opcode) {
             const u8 immediate = source_operand & 0xFF;
 
             if (destination_is_spsr) {
-                spsr.raw &= ~0xFFFFFF00;
-                spsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
+                SetSPSR(GetSPSR() & ~0xFFFFFF00);
+                SetSPSR(GetSPSR() | (Shift_RotateRight(immediate, rotate_amount << 1) & 0xFFFFFF00));
             } else {
                 cpsr.raw &= ~0xFFFFFF00;
-                cpsr.raw |= (Shift_RotateRight(immediate, rotate_amount * 2) & 0xFFFFFF00);
+                cpsr.raw |= (Shift_RotateRight(immediate, rotate_amount << 1) & 0xFFFFFF00);
             }
         } else {
             const u8 rm = source_operand & 0xF;
             if (destination_is_spsr) {
-                spsr.raw &= ~0xFFFFFF00;
-                spsr.raw |= (GetRegister(rm) & 0xFFFFFF00);
+                SetSPSR(GetSPSR() & ~0xFFFFFF00);
+                SetSPSR(GetSPSR() | (GetRegister(rm) & 0xFFFFFF00));
             } else {
                 cpsr.raw &= ~0xFFFFFF00;
                 cpsr.raw |= (GetRegister(rm) & 0xFFFFFF00);
@@ -226,7 +226,7 @@ void ARM7::ARM_MSR(const u32 opcode) {
     } else {
         const u8 rm = opcode & 0xF;
         if (destination_is_spsr) {
-            spsr.raw = GetRegister(rm);
+            SetSPSR(GetRegister(rm));
         } else {
             cpsr.raw = GetRegister(rm);
         }

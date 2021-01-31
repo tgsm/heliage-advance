@@ -129,7 +129,30 @@ private:
         }
     }
 
-    std::string GetRegisterAsString(u8 reg) const;
+    inline u32 GetSPSR() const {
+        switch (cpsr.flags.processor_mode) {
+            case ProcessorMode::System:
+            case ProcessorMode::User:
+                return cpsr.raw;
+            case ProcessorMode::Supervisor:
+                return spsr_svc.raw;
+            default:
+                UNIMPLEMENTED_MSG("unimplemented get spsr from mode {:X}", cpsr.flags.processor_mode);
+        }
+    }
+
+    inline void SetSPSR(const u32 cpsr_raw) {
+        switch (cpsr.flags.processor_mode) {
+            case ProcessorMode::System:
+            case ProcessorMode::User:
+                break;
+            case ProcessorMode::Supervisor:
+                spsr_svc.raw = cpsr_raw;
+                break;
+            default:
+                UNIMPLEMENTED_MSG("unimplemented set spsr for mode {:X}", cpsr.flags.processor_mode);
+        }
+    }
 
     enum class ARM_Instructions {
         DataProcessing,
@@ -260,7 +283,6 @@ private:
     };
 
     PSR cpsr;
-    PSR spsr;
     PSR spsr_fiq;
     PSR spsr_svc;
     PSR spsr_abt;
