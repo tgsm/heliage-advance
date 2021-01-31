@@ -26,5 +26,6 @@ private:
     Keypad& keypad;
     PPU& ppu;
 
-    std::array<u8, 0x8000> wram;
+    std::array<u8, 0x40000> wram_onboard {};
+    std::array<u8, 0x8000> wram_onchip {};
 };
