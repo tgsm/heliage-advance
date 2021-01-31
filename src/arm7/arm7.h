@@ -328,10 +328,8 @@ private:
 
     void ARM_SingleDataTransfer(const u32 opcode);
     void ARM_DisassembleSingleDataTransfer(const u32 opcode);
-    void ARM_LoadWord(const u32 opcode);
-    void ARM_StoreWord(const u32 opcode);
-    void ARM_LoadByte(const u32 opcode);
-    void ARM_StoreByte(const u32 opcode);
+    template <bool load_from_memory, bool transfer_byte>
+    void ARM_SingleDataTransfer_Impl(const u32 opcode);
 
     void ARM_BlockDataTransfer(const u32 opcode);
     void ARM_DisassembleBlockDataTransfer(const u32 opcode);

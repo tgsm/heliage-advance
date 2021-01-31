@@ -524,23 +524,28 @@ void ARM7::ARM_SingleDataTransfer(const u32 opcode) {
     const u16 operation = (opcode >> 20) & 0b101;
     switch (operation) {
         case 0b000:
-            ARM_StoreWord(opcode);
+            // Store word
+            ARM_SingleDataTransfer_Impl<false, false>(opcode);
             break;
         case 0b001:
-            ARM_LoadWord(opcode);
+            // Load word
+            ARM_SingleDataTransfer_Impl<true, false>(opcode);
             break;
         case 0b100:
-            ARM_StoreByte(opcode);
+            // Store byte
+            ARM_SingleDataTransfer_Impl<false, true>(opcode);
             break;
         case 0b101:
-            ARM_LoadByte(opcode);
+            // Load byte
+            ARM_SingleDataTransfer_Impl<true, true>(opcode);
             break;
         default:
             UNREACHABLE();
     }
 }
 
-void ARM7::ARM_LoadWord(const u32 opcode) {
+template <bool load_from_memory, bool transfer_byte>
+void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
     const bool offset_is_register = (opcode >> 25) & 0b1;
     const bool add_before_transfer = (opcode >> 24) & 0b1;
     const bool add_offset_to_base = (opcode >> 23) & 0b1;
@@ -549,12 +554,12 @@ void ARM7::ARM_LoadWord(const u32 opcode) {
     const u8 rd = (opcode >> 12) & 0xF;
     s16 offset = 0;
     if (offset_is_register) {
-        u8 shift = (opcode >> 4) & 0xFF;
-        u8 rm = opcode & 0xF;
+        const u8 shift = (opcode >> 4) & 0xFF;
+        const u8 rm = opcode & 0xF;
 
         if ((shift & 0b1) == 0) {
-            u8 shift_amount = (shift >> 3) & 0x1F;
-            ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
+            const u8 shift_amount = (shift >> 3) & 0x1F;
+            const ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
 
             offset = Shift(GetRegister(rm), shift_type, shift_amount);
             if (!add_offset_to_base) {
@@ -577,137 +582,45 @@ void ARM7::ARM_LoadWord(const u32 opcode) {
             address -= offset;
         }
 
-        address &= ~0x3; // Word align
-        SetRegister(rd, mmu.Read32(address));
+        if constexpr (!transfer_byte) {
+            address &= ~0x3; // Word align
+        }
+
+        if constexpr (load_from_memory) {
+            if constexpr (transfer_byte) {
+                SetRegister(rd, mmu.Read8(address));
+            } else {
+                SetRegister(rd, mmu.Read32(address));
+            }
+        } else {
+            if constexpr (transfer_byte) {
+                mmu.Write8(address, GetRegister(rd) & 0xFF);
+            } else {
+                mmu.Write32(address, GetRegister(rd));
+            }
+        }
 
         if (write_back) {
             SetRegister(rn, address);
         }
     } else {
-        address &= ~0x3; // Word align
-        SetRegister(rd, mmu.Read32(address));
+        if constexpr (!transfer_byte) {
+            address &= ~0x3; // Word align
+        }
 
-        if (add_offset_to_base) {
-            address += offset;
+        if constexpr (load_from_memory) {
+            if constexpr (transfer_byte) {
+                SetRegister(rd, mmu.Read8(address));
+            } else {
+                SetRegister(rd, mmu.Read32(address));
+            }
         } else {
-            address -= offset;
+            if constexpr (transfer_byte) {
+                mmu.Write8(address, GetRegister(rd) & 0xFF);
+            } else {
+                mmu.Write32(address, GetRegister(rd));
+            }
         }
-
-        SetRegister(rn, address);
-    }
-}
-
-void ARM7::ARM_StoreWord(const u32 opcode) {
-    const bool offset_is_register = (opcode >> 25) & 0b1;
-    const bool add_before_transfer = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    u16 offset = 0;
-    if (offset_is_register) {
-        UNIMPLEMENTED_MSG("unimplemented store word with register offset");
-    } else {
-        offset = opcode & 0xFFF;
-    }
-
-    u32 address = GetRegister(rn);
-    if (add_before_transfer) {
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        address &= ~0x3; // Word align
-        mmu.Write32(address, GetRegister(rd));
-
-        if (write_back) {
-            SetRegister(rn, address);
-        }
-    } else {
-        address &= ~0x3; // Word align
-        mmu.Write32(address, GetRegister(rd));
-
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        SetRegister(rn, address);
-    }
-}
-
-void ARM7::ARM_LoadByte(const u32 opcode) {
-    const bool offset_is_register = (opcode >> 25) & 0b1;
-    const bool add_before_transfer = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    u16 offset = 0;
-    if (offset_is_register) {
-        UNIMPLEMENTED_MSG("unimplemented load byte with register offset");
-    } else {
-        offset = opcode & 0xFFF;
-    }
-
-    u32 address = GetRegister(rn);
-    if (add_before_transfer) {
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        SetRegister(rd, mmu.Read8(address));
-
-        if (write_back) {
-            SetRegister(rn, address);
-        }
-    } else {
-        SetRegister(rd, mmu.Read8(address));
-
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        SetRegister(rn, address);
-    }
-}
-
-void ARM7::ARM_StoreByte(const u32 opcode) {
-    const bool offset_is_register = (opcode >> 25) & 0b1;
-    const bool add_before_transfer = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    u16 offset = 0;
-    if (offset_is_register) {
-        UNIMPLEMENTED_MSG("unimplemented store byte with register offset");
-    } else {
-        offset = opcode & 0xFFF;
-    }
-
-    u32 address = GetRegister(rn);
-    if (add_before_transfer) {
-        if (add_offset_to_base) {
-            address += offset;
-        } else {
-            address -= offset;
-        }
-
-        mmu.Write8(address, GetRegister(rd));
-
-        if (write_back) {
-            SetRegister(rn, address);
-        }
-    } else {
-        mmu.Write8(address, GetRegister(rd));
 
         if (add_offset_to_base) {
             address += offset;
