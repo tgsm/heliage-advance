@@ -83,6 +83,10 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 SetRegister(rd, GetRegister(rn) | rotated_operand);
                 break;
             case 0xD:
+                if (set_condition_codes && rd == 15) {
+                    cpsr.raw = GetSPSR();
+                }
+
                 SetRegister(rd, rotated_operand);
                 break;
             case 0xE:
@@ -142,6 +146,10 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     SetRegister(rd, GetRegister(rn) | shifted_operand);
                     break;
                 case 0xD:
+                    if (set_condition_codes && rd == 15) {
+                        cpsr.raw = GetSPSR();
+                    }
+
                     SetRegister(rd, shifted_operand);
                     break;
                 case 0xE:
@@ -157,9 +165,15 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             u8 rs = (shift >> 4) & 0xF;
             ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
 
+            u32 shifted_operand = Shift(GetRegister(rm), shift_type, GetRegister(rs));
+
             switch (op) {
                 case 0xD:
-                    SetRegister(rd, Shift(GetRegister(rm), shift_type, GetRegister(rs)));
+                    if (set_condition_codes && rd == 15) {
+                        cpsr.raw = GetSPSR();
+                    }
+
+                    SetRegister(rd, shifted_operand);
                     break;
                 default:
                     UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register and barrel shifter", op);
