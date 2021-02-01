@@ -980,7 +980,7 @@ void ARM7::Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode) {
         disasm += "B";
     }
 
-    disasm += fmt::format(" R{}, [R{}, #0x{:02X}]", rd, rb, offset << 2);
+    disasm += fmt::format(" R{}, [R{}, #0x{:02X}]", rd, rb, transfer_byte ? offset : offset << 2);
 
     LTRACE_THUMB("{}", disasm);
 }
