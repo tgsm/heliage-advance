@@ -110,22 +110,19 @@ void ARM7::DisassembleThumbInstruction(const Thumb_Instructions instr, const u16
     }
 }
 
-std::string ARM7::GetRegisterAsString(u8 reg) const {
+std::string ARM7::GetRegAsStr(const u8 reg) const {
     ASSERT(reg <= 15);
 
-    if (reg == 13) {
-        return "SP";
+    switch (reg) {
+        case 13:
+            return "SP";
+        case 14:
+            return "LR";
+        case 15:
+            return "PC";
+        default:
+            return fmt::format("R{}", reg);
     }
-
-    if (reg == 14) {
-        return "LR";
-    }
-
-    if (reg == 15) {
-        return "PC";
-    }
-
-    return std::to_string(reg);
 }
 
 std::string ARM7::GetConditionCode(const u8 cond) {
@@ -181,7 +178,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                 disasm += "S";
             }
 
-            disasm += fmt::format(" R{}, ", rd);
+            disasm += fmt::format(" {}, ", GetRegAsStr(rd));
 
             if (op2_is_immediate) {
                 u8 rotate_amount = (op2 >> 8) & 0xF;
@@ -197,13 +194,13 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                     u8 shift_type = (shift >> 1) & 0b11;
 
                     if (!shift_amount && !shift_type) {
-                        disasm += fmt::format("R{}", rm);
+                        disasm += GetRegAsStr(rm);
                     } else {
                         if (!shift_amount) {
                             shift_amount = 32;
                         }
 
-                        disasm += fmt::format("R{}, ", rm);
+                        disasm += fmt::format("{}, ", GetRegAsStr(rm));
 
                         constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
                         disasm += std::string(shift_types[shift_type]);
@@ -214,12 +211,12 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                     u8 rs = (shift >> 4) & 0xF;
                     u8 shift_type = (shift >> 1) & 0b11;
 
-                    disasm += fmt::format("R{}, ", rm);
+                    disasm += fmt::format("{}, ", GetRegAsStr(rm));
 
                     constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
                     disasm += std::string(shift_types[shift_type]);
 
-                    disasm += fmt::format(" R{}", rs);
+                    disasm += fmt::format(" {}", GetRegAsStr(rs));
                 } else {
                     ASSERT(false);
                 }
@@ -230,7 +227,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
         case 0x9: // TEQ
         case 0xA: // CMP
         case 0xB: // CMN
-            disasm += fmt::format(" R{}, ", rn);
+            disasm += fmt::format(" {}, ", GetRegAsStr(rn));
 
             if (op2_is_immediate) {
                 u8 rotate_amount = (op2 >> 8) & 0xF;
@@ -246,9 +243,9 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                     u8 rm = op2 & 0xF;
 
                     if (!shift_amount) {
-                        disasm += fmt::format("R{}", rm);
+                        disasm += GetRegAsStr(rm);
                     } else {
-                        disasm += fmt::format("R{}, ", rm);
+                        disasm += fmt::format("{}, ", GetRegAsStr(rm));
 
                         constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
                         disasm += std::string(shift_types[shift_type]);
@@ -277,7 +274,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                 disasm += "S";
             }
 
-            disasm += fmt::format(" R{}, R{}, ", rd, rn);
+            disasm += fmt::format(" {}, {}, ", GetRegAsStr(rd), GetRegAsStr(rn));
 
             if (op2_is_immediate) {
                 u8 rotate_amount = (op2 >> 8) & 0xF;
@@ -293,9 +290,9 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                     u8 rm = op2 & 0xF;
 
                     if (!shift_amount) {
-                        disasm += fmt::format("R{}", rm);
+                        disasm += GetRegAsStr(rm);
                     } else {
-                        disasm += fmt::format("R{}, ", rm);
+                        disasm += fmt::format("{}, ", GetRegAsStr(rm));
 
                         constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
                         disasm += std::string(shift_types[shift_type]);
@@ -324,7 +321,7 @@ void ARM7::ARM_DisassembleMRS(const u32 opcode) {
 
     disasm += fmt::format("MRS{} ", GetConditionCode(cond));
 
-    disasm += fmt::format("R{}, ", rd);
+    disasm += fmt::format("{}, ", GetRegAsStr(rd));
 
     if (source_is_spsr) {
         disasm += "SPSR";
@@ -360,12 +357,12 @@ void ARM7::ARM_DisassembleMSR(const u32 opcode) {
             disasm += fmt::format("#0x{:08X}", Shift_RotateRight(immediate, rotate_amount * 2));
         } else {
             const u8 rm = source_operand & 0xF;
-            disasm += fmt::format("R{}", rm);
+            disasm += GetRegAsStr(rm);
         }
     } else {
         const u8 rm = opcode & 0xF;
 
-        disasm += fmt::format("{}_all, R{}", destination_is_spsr ? "SPSR" : "CPSR", rm);
+        disasm += fmt::format("{}_all, {}", destination_is_spsr ? "SPSR" : "CPSR", GetRegAsStr(rm));
     }
 
     LTRACE_ARM("{}", disasm);
@@ -394,9 +391,9 @@ void ARM7::ARM_DisassembleMultiply(const u32 opcode) {
     }
 
     if (accumulate) {
-        disasm += fmt::format(" R{}, R{}, R{}, R{}", rd, rm, rs, rn);
+        disasm += fmt::format(" {}, {}, {}, {}", GetRegAsStr(rd), GetRegAsStr(rm), GetRegAsStr(rs), GetRegAsStr(rn));
     } else {
-        disasm += fmt::format(" R{}, R{}, R{}", rd, rm, rs);
+        disasm += fmt::format(" {}, {}, {}", GetRegAsStr(rd), GetRegAsStr(rm), GetRegAsStr(rs));
     }
 
     LTRACE_ARM("{}", disasm);
@@ -431,7 +428,7 @@ void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
         disasm += "S";
     }
 
-    disasm += fmt::format(" R{}, R{}, R{}, R{}", rdlo, rdhi, rm, rs);
+    disasm += fmt::format(" {}, {}, {}, {}", GetRegAsStr(rdlo), GetRegAsStr(rdhi), GetRegAsStr(rm), GetRegAsStr(rs));
 
     LTRACE_ARM("{}", disasm);
 }
@@ -450,7 +447,7 @@ void ARM7::ARM_DisassembleSingleDataSwap(const u32 opcode) {
         disasm += "B";
     }
 
-    disasm += fmt::format(" R{}, R{}, [R{}]", rd, rm, rn);
+    disasm += fmt::format(" {}, {}, [{}]", GetRegAsStr(rd), GetRegAsStr(rm), GetRegAsStr(rn));
 
     LTRACE_ARM("{}", disasm);
 }
@@ -460,7 +457,7 @@ void ARM7::ARM_DisassembleBranchAndExchange(const u32 opcode) {
     const u8 rn = opcode & 0xF;
     std::string disasm;
 
-    disasm += fmt::format("BX{} R{}", GetConditionCode(cond), rn);
+    disasm += fmt::format("BX{} {}", GetConditionCode(cond), GetRegAsStr(rn));
 
     LTRACE_ARM("{}", disasm);
 }
@@ -501,24 +498,24 @@ void ARM7::ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode) {
         disasm += "B";
     }
 
-    disasm += fmt::format(" R{}, ", rd);
+    disasm += fmt::format(" {}, ", GetRegAsStr(rd));
 
     if (pre_indexing) {
-        disasm += fmt::format("[R{}, ", rn);
+        disasm += fmt::format("[{}, ", GetRegAsStr(rn));
         if (!add_offset_to_base) {
             disasm += "-";
         }
-        disasm += fmt::format("R{}]", rm);
+        disasm += fmt::format("{}]", GetRegAsStr(rm));
 
         if (write_back) {
             disasm += "!";
         }
     } else {
-        disasm += fmt::format("[R{}], ", rn);
+        disasm += fmt::format("[{}], ", GetRegAsStr(rn));
         if (!add_offset_to_base) {
             disasm += "-";
         }
-        disasm += fmt::format("R{}", rm);
+        disasm += GetRegAsStr(rm);
     }
 
     LTRACE_ARM("{}", disasm);
@@ -562,13 +559,13 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
         disasm += "B";
     }
 
-    disasm += fmt::format(" R{}, ", rd);
+    disasm += fmt::format(" {}, ", GetRegAsStr(rd));
 
     if (pre_indexing) {
         if (offset == 0) {
-            disasm += fmt::format("[R{}]", rn);
+            disasm += fmt::format("[{}]", GetRegAsStr(rn));
         } else {
-            disasm += fmt::format("[R{}, #", rn);
+            disasm += fmt::format("[{}, #", GetRegAsStr(rn));
             if (!add_offset_to_base) {
                 disasm += "-";
             }
@@ -579,7 +576,7 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
             }
         }
     } else {
-        disasm += fmt::format("[R{}], #", rn);
+        disasm += fmt::format("[{}], #", GetRegAsStr(rn));
         if (!add_offset_to_base) {
             disasm += "-";
         }
@@ -618,21 +615,21 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
     //             non-privileged mode for the transfer cycle. T is not allowed when 
     //             pre-indexed addressing mode is specified or implied.
 
-    disasm += fmt::format(" R{}, ", rd);
+    disasm += fmt::format(" {}, ", GetRegAsStr(rd));
 
     if (add_before_transfer) {
         if (offset == 0) {
-            disasm += fmt::format("[R{}]", rn);
+            disasm += fmt::format("[{}]", GetRegAsStr(rn));
         } else {
             if (offset_is_register) {
                 u8 shift = (offset >> 4) & 0xFF;
                 u8 rm = offset & 0xF;
 
-                disasm += fmt::format("[R{}, ", rn);
+                disasm += fmt::format("[{}, ", GetRegAsStr(rn));
                 if (!add_offset_to_base) {
                     disasm += "-";
                 }
-                disasm += fmt::format("R{}", rm);
+                disasm += GetRegAsStr(rm);
 
                 if ((shift & 0b1) == 0) {
                     u16 shift_amount = (shift >> 3) & 0x1F;
@@ -650,7 +647,7 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
                     ASSERT(false);
                 }
             } else {
-                disasm += fmt::format("[R{}, #", rn);
+                disasm += fmt::format("[{}, #", GetRegAsStr(rn));
                 if (!add_offset_to_base) {
                     disasm += '-';
                 }
@@ -662,11 +659,11 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
             u8 shift = (offset >> 4) & 0xFF;
             u8 rm = offset & 0xF;
 
-            disasm += fmt::format("[R{}], ", rn);
+            disasm += fmt::format("[{}], ", GetRegAsStr(rn));
             if (!add_offset_to_base) {
                 disasm += "-";
             }
-            disasm += fmt::format("R{}", rm);
+            disasm += GetRegAsStr(rm);
 
             if ((shift & 0b1) == 0) {
                 u16 shift_amount = (shift >> 3) & 0x1F;
@@ -682,7 +679,7 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
                 ASSERT(false);
             }
         } else {
-            disasm += fmt::format("[R{}], #0x{:08X}", rn, offset);
+            disasm += fmt::format("[{}], #0x{:08X}", GetRegAsStr(rn), offset);
         }
     }
 
@@ -729,7 +726,7 @@ void ARM7::ARM_DisassembleBlockDataTransfer(const u32 opcode) {
             disasm += "A";
         }
 
-        disasm += fmt::format(" R{}", rn);
+        disasm += fmt::format(" {}", GetRegAsStr(rn));
 
         if (write_back) {
             disasm += "!";
@@ -760,7 +757,7 @@ void ARM7::ARM_DisassembleBlockDataTransfer(const u32 opcode) {
     }
 
     for (u8 i = 0; i < set_bits.size(); i++) {
-        disasm += fmt::format("R{}", set_bits[i]);
+        disasm += GetRegAsStr(set_bits[i]);
         if (i != set_bits.size() - 1) {
             disasm += ", ";
         }
@@ -820,7 +817,7 @@ void ARM7::Thumb_DisassembleMoveShiftedRegister(const u16 opcode) {
     const std::array<std::string, 3> mnemonics = { "LSL", "LSR", "ASR" };
     disasm += mnemonics.at(op);
 
-    disasm += fmt::format(" R{}, R{}, #{}", rd, rs, offset);
+    disasm += fmt::format(" {}, {}, #{}", GetRegAsStr(rd), GetRegAsStr(rs), offset);
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -838,14 +835,14 @@ void ARM7::Thumb_DisassembleAddSubtract(const u16 opcode) {
         disasm += "ADD";
     }
 
-    disasm += fmt::format(" R{}, R{}, ", rd, rs);
+    disasm += fmt::format(" {}, {}, ", GetRegAsStr(rd), GetRegAsStr(rs));
 
     if (operand_is_immediate) {
         const u8 immediate = (opcode >> 6) & 0x7;
         disasm += fmt::format("#0x{:02X}", immediate);
     } else {
         const u8 rn = (opcode >> 6) & 0x7;
-        disasm += fmt::format("R{}", rn);
+        disasm += GetRegAsStr(rn);
     }
 
     LTRACE_THUMB("{}", disasm);
@@ -860,7 +857,7 @@ void ARM7::Thumb_DisassembleMoveCompareAddSubtractImmediate(const u16 opcode) {
     constexpr std::array<const char*, 4> mnemonics = { "MOV", "CMP", "ADD", "SUB" };
     disasm += std::string(mnemonics.at(op));
 
-    disasm += fmt::format(" R{}, #0x{:02X}", rd, offset);
+    disasm += fmt::format(" {}, #0x{:02X}", GetRegAsStr(rd), offset);
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -876,7 +873,7 @@ void ARM7::Thumb_DisassembleALUOperations(const u16 opcode) {
     };
     disasm += mnemonics.at(op);
 
-    disasm += fmt::format(" R{}, R{}", rd, rs);
+    disasm += fmt::format(" {}, {}", GetRegAsStr(rd), GetRegAsStr(rs));
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -896,10 +893,10 @@ void ARM7::Thumb_DisassembleHiRegisterOperationsBranchExchange(const u16 opcode)
 
     // BX
     if (op == 0x3) {
-        disasm += fmt::format(" R{}", h2 ? rs_hs + 8 : rs_hs);
+        disasm += fmt::format(" {}", GetRegAsStr(h2 ? rs_hs + 8 : rs_hs));
     } else {
-        disasm += fmt::format(" R{}, ", h1 ? rd_hd + 8 : rd_hd);
-        disasm += fmt::format("R{}", h2 ? rs_hs + 8 : rs_hs);
+        disasm += fmt::format(" {}, ", GetRegAsStr(h1 ? rd_hd + 8 : rd_hd));
+        disasm += fmt::format("{}", GetRegAsStr(h2 ? rs_hs + 8 : rs_hs));
     }
 
     LTRACE_THUMB("{}", disasm);
@@ -909,7 +906,7 @@ void ARM7::Thumb_DisassemblePCRelativeLoad(const u16 opcode) {
     const u8 rd = (opcode >> 8) & 0x7;
     const u8 imm = opcode & 0xFF;
 
-    LTRACE_THUMB("LDR R{}, [R15, #0x{:08X}]", rd, imm);
+    LTRACE_THUMB("LDR {}, [PC, #0x{:08X}]", GetRegAsStr(rd), imm);
 }
 
 void ARM7::Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode) {
@@ -930,7 +927,7 @@ void ARM7::Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode) {
         disasm += "B";
     }
 
-    disasm += fmt::format(" R{}, [R{}, R{}]", rd, rb, ro);
+    disasm += fmt::format(" {}, [{}, {}]", GetRegAsStr(rd), GetRegAsStr(rb), GetRegAsStr(ro));
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -957,7 +954,7 @@ void ARM7::Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode) 
         }
     }
 
-    disasm += fmt::format(" R{}, [R{}, R{}]", rd, rb, ro);
+    disasm += fmt::format(" {}, [{}, {}]", GetRegAsStr(rd), GetRegAsStr(rb), GetRegAsStr(ro));
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -980,7 +977,7 @@ void ARM7::Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode) {
         disasm += "B";
     }
 
-    disasm += fmt::format(" R{}, [R{}, #0x{:02X}]", rd, rb, transfer_byte ? offset : offset << 2);
+    disasm += fmt::format(" {}, [{}, #0x{:02X}]", GetRegAsStr(rd), GetRegAsStr(rb), transfer_byte ? offset : offset << 2);
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -998,7 +995,7 @@ void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
         disasm += "STRH";
     }
 
-    disasm += fmt::format(" R{}, [R{}, #0x{:X}]", rd, rb, imm);
+    disasm += fmt::format(" {}, [{}, #0x{:X}]", GetRegAsStr(rd), GetRegAsStr(rb), imm);
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -1015,7 +1012,7 @@ void ARM7::Thumb_DisassembleSPRelativeLoadStore(const u16 opcode) {
         disasm += "STR";
     }
 
-    disasm += fmt::format(" R{}, [SP, #0x{:X}]", rd, imm << 2);
+    disasm += fmt::format(" {}, [SP, #0x{:X}]", GetRegAsStr(rd), imm << 2);
 
     LTRACE_THUMB("{}", disasm);
 }
@@ -1026,7 +1023,7 @@ void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
     const u8 imm = opcode & 0xFF;
     std::string disasm;
 
-    disasm += fmt::format("ADD R{}, ", rd);
+    disasm += fmt::format("ADD {}, ", GetRegAsStr(rd));
 
     if (load_from_sp) {
         disasm += "SP";
@@ -1094,7 +1091,7 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
     }
 
     for (u8 i = 0; i < set_bits.size(); i++) {
-        disasm += fmt::format("R{}", set_bits[i]);
+        disasm += GetRegAsStr(set_bits[i]);
         if (i != set_bits.size() - 1) {
             disasm += ", ";
         }
@@ -1125,7 +1122,7 @@ void ARM7::Thumb_DisassembleMultipleLoadStore(const u16 opcode) {
         disasm += "STMIA";
     }
 
-    disasm += fmt::format(" R{}!, {{", rb);
+    disasm += fmt::format(" {}!, {{", GetRegAsStr(rb));
 
     // Go through `rlist`'s 8 bits, and write down which bits are set. This tells
     // us which registers we need to load/store.
@@ -1139,7 +1136,7 @@ void ARM7::Thumb_DisassembleMultipleLoadStore(const u16 opcode) {
     }
 
     for (u8 i = 0; i < set_bits.size(); i++) {
-        disasm += fmt::format("R{}", set_bits[i]);
+        disasm += GetRegAsStr(set_bits[i]);
         if (i != set_bits.size() - 1) {
             disasm += ", ";
         }
