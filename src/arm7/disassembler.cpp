@@ -1,4 +1,8 @@
 #include <fmt/core.h>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/filter.hpp>
+#include <range/v3/view/iota.hpp>
+#include <range/v3/view/reverse.hpp>
 #include "arm7.h"
 #include "logging.h"
 
@@ -1066,12 +1070,10 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
     // us which registers we need to load/store.
     // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
     // to R1, and so on.
-    std::vector<u8> set_bits;
-    for (u8 i = 0; i < 8; i++) {
-        if (rlist & (1 << i)) {
-            set_bits.push_back(i);
-        }
-    }
+    const auto bit_is_set = [rlist](const u8 i) { return (rlist & (1 << i)) != 0; };
+    const auto set_bits = ranges::views::iota(0, 8)
+                        | ranges::views::filter(bit_is_set)
+                        | ranges::to<std::vector>;
 
     if (set_bits.empty()) {
         if (!store_lr_load_pc) {
@@ -1128,12 +1130,10 @@ void ARM7::Thumb_DisassembleMultipleLoadStore(const u16 opcode) {
     // us which registers we need to load/store.
     // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
     // to R1, and so on.
-    std::vector<u8> set_bits;
-    for (u8 i = 0; i < 8; i++) {
-        if (rlist & (1 << i)) {
-            set_bits.push_back(i);
-        }
-    }
+    const auto bit_is_set = [rlist](const u8 i) { return (rlist & (1 << i)) != 0; };
+    const auto set_bits = ranges::views::iota(0, 8)
+                        | ranges::views::filter(bit_is_set)
+                        | ranges::to<std::vector>;
 
     for (u8 i = 0; i < set_bits.size(); i++) {
         disasm += GetRegAsStr(set_bits[i]);

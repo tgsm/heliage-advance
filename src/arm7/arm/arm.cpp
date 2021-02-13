@@ -1,6 +1,7 @@
-#if defined(__GNUC__) && !defined(__clang__)
-#include <ranges>
-#endif
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/filter.hpp>
+#include <range/v3/view/iota.hpp>
+#include <range/v3/view/reverse.hpp>
 #include "arm7/arm7.h"
 
 void ARM7::ARM_DataProcessing(const u32 opcode) {
@@ -637,12 +638,10 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     // us which registers we need to load/store.
     // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
     // to R1, and so on.
-    std::vector<u8> set_bits;
-    for (u8 i = 0; i < 16; i++) {
-        if (rlist & (1 << i)) {
-            set_bits.push_back(i);
-        }
-    }
+    const auto bit_is_set = [rlist](const u8 i) { return (rlist & (1 << i)) != 0; };
+    const auto set_bits = ranges::views::iota(0, 16)
+                        | ranges::views::filter(bit_is_set)
+                        | ranges::to<std::vector>;
 
     if (set_bits.empty()) {
         return;
@@ -661,9 +660,7 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
                 }
             }
         } else {
-// TODO: Remove this when Clang supports the ranges library.
-#if defined(__GNUC__) && !defined(__clang__)
-            for (u8 reg : set_bits | std::views::reverse) {
+            for (u8 reg : set_bits | ranges::views::reverse) {
                 if (pre_indexing) {
                     address -= 4;
                     SetRegister(reg, mmu.Read32(address));
@@ -672,17 +669,6 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
                     address -= 4;
                 }
             }
-#else
-            for (int i = set_bits.size() - 1; i >= 0; i--) {
-                if (pre_indexing) {
-                    address -= 4;
-                    SetRegister(set_bits[i], mmu.Read32(address));
-                } else {
-                    SetRegister(set_bits[i], mmu.Read32(address));
-                    address -= 4;
-                }
-            }
-#endif
         }
     } else {
         if (add_offset_to_base) {
@@ -696,9 +682,7 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
                 }
             }
         } else {
-// TODO: Remove this when Clang supports the ranges library.
-#if defined(__GNUC__) && !defined(__clang__)
-            for (u8 reg : set_bits | std::views::reverse) {
+            for (u8 reg : set_bits | ranges::views::reverse) {
                 if (pre_indexing) {
                     address -= 4;
                     mmu.Write32(address, GetRegister(reg));
@@ -707,17 +691,6 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
                     address -= 4;
                 }
             }
-#else
-            for (int i = set_bits.size() - 1; i >= 0; i--) {
-                if (pre_indexing) {
-                    address -= 4;
-                    mmu.Write32(address, GetRegister(set_bits.at(i)));
-                } else {
-                    mmu.Write32(address, GetRegister(set_bits[i]));
-                    address -= 4;
-                }
-            }
-#endif
         }
     }
 

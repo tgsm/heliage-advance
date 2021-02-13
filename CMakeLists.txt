@@ -55,10 +55,16 @@ else()
     set(HEADERS ${HEADERS} "src/frontend/null.h")
 endif()
 
+add_subdirectory(dependencies/range-v3)
 add_subdirectory(dependencies/fmt)
 
 add_executable(heliage-advance ${SOURCES} ${HEADERS})
-target_include_directories(heliage-advance PRIVATE src dependencies)
+target_include_directories(heliage-advance PRIVATE
+    src
+    dependencies
+    dependencies/range-v3/include
+    dependencies/fmt
+)
 target_link_libraries(heliage-advance fmt)
 if (${HA_FRONTEND} MATCHES "SDL2")
     target_link_libraries(heliage-advance SDL2)

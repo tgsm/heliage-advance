@@ -1,6 +1,7 @@
-#if defined(__GNUC__) && !defined(__clang__)
-#include <ranges>
-#endif
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/filter.hpp>
+#include <range/v3/view/iota.hpp>
+#include <range/v3/view/reverse.hpp>
 #include "arm7/arm7.h"
 
 void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
@@ -405,12 +406,10 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
     // us which registers we need to load/store.
     // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
     // to R1, and so on.
-    std::vector<u8> set_bits;
-    for (u8 i = 0; i < 8; i++) {
-        if (rlist & (1 << i)) {
-            set_bits.push_back(i);
-        }
-    }
+    const auto bit_is_set = [rlist](const u8 i) { return (rlist & (1 << i)) != 0; };
+    const auto set_bits = ranges::views::iota(0, 8)
+                        | ranges::views::filter(bit_is_set)
+                        | ranges::to<std::vector>;
 
     if (set_bits.empty()) {
         if (!store_lr_load_pc) {
@@ -444,18 +443,10 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
             mmu.Write32(GetSP(), GetLR());
         }
 
-// TODO: Remove this when Clang supports the ranges library.
-#if defined(__GNUC__) && !defined(__clang__)
-        for (u8 reg : set_bits | std::views::reverse) {
+        for (u8 reg : set_bits | ranges::views::reverse) {
             SetSP(GetSP() - 4);
             mmu.Write32(GetSP(), GetRegister(reg));
         }
-#else
-        for (int i = set_bits.size() - 1; i >= 0; i--) {
-            SetSP(GetSP() - 4);
-            mmu.Write32(GetSP(), GetRegister(set_bits[i]));
-        }
-#endif
     }
 }
 
@@ -468,12 +459,10 @@ void ARM7::Thumb_MultipleLoadStore(const u16 opcode) {
     // us which registers we need to load/store.
     // If bit 0 is set, that corresponds to R0. If bit 1 is set, that corresponds
     // to R1, and so on.
-    std::vector<u8> set_bits;
-    for (u8 i = 0; i < 8; i++) {
-        if (rlist & (1 << i)) {
-            set_bits.push_back(i);
-        }
-    }
+    const auto bit_is_set = [rlist](const u8 i) { return (rlist & (1 << i)) != 0; };
+    const auto set_bits = ranges::views::iota(0, 8)
+                        | ranges::views::filter(bit_is_set)
+                        | ranges::to<std::vector>;
 
     if (set_bits.empty()) {
         return;
