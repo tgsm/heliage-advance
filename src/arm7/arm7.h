@@ -158,6 +158,9 @@ private:
 
     enum class ARM_Instructions {
         DataProcessing,
+        MRS,
+        MSR_AllBits,
+        MSR_FlagBits,
         Multiply,
         MultiplyLong,
         SingleDataSwap,
@@ -299,8 +302,8 @@ private:
 
     void ARM_MRS(const u32 opcode);
     void ARM_DisassembleMRS(const u32 opcode);
-    template <bool flag_bits_only>
-    void ARM_MSR(const u32 opcode);
+    void ARM_MSR_AllBits(const u32 opcode);
+    void ARM_MSR_FlagBits(const u32 opcode);
     template <bool flag_bits_only>
     void ARM_DisassembleMSR(const u32 opcode);
 

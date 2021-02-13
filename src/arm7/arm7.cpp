@@ -61,6 +61,9 @@ ARM7::ARM_Instructions ARM7::DecodeARMInstruction(const u32 opcode) const {
     if ((opcode & 0x0FC000F0) == 0x00000090) return ARM_Instructions::Multiply;
     if ((opcode & 0x0E400090) == 0x00400090) return ARM_Instructions::HalfwordDataTransferImmediate;
     if ((opcode & 0x0E400F90) == 0x00000090) return ARM_Instructions::HalfwordDataTransferRegister;
+    if ((opcode & 0x0FBF0FFF) == 0x010F0000) return ARM_Instructions::MRS;
+    if ((opcode & 0x0FBFFFF0) == 0x0129F000) return ARM_Instructions::MSR_AllBits;
+    if ((opcode & 0x0DBFF000) == 0x0128F000) return ARM_Instructions::MSR_FlagBits;
     if ((opcode & 0x0C000000) == 0x00000000) return ARM_Instructions::DataProcessing;
 
     // The opcode did not meet any of the above conditions.
@@ -76,6 +79,15 @@ void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode)
     switch (instr) {
         case ARM_Instructions::DataProcessing:
             ARM_DataProcessing(opcode);
+            break;
+        case ARM_Instructions::MRS:
+            ARM_MRS(opcode);
+            break;
+        case ARM_Instructions::MSR_AllBits:
+            ARM_MSR_AllBits(opcode);
+            break;
+        case ARM_Instructions::MSR_FlagBits:
+            ARM_MSR_FlagBits(opcode);
             break;
         case ARM_Instructions::Multiply:
             ARM_Multiply(opcode);
