@@ -2,6 +2,7 @@
 #include "cartridge.h"
 #include "logging.h"
 
+constexpr int TITLE_OFFSET = 0xA0;
 constexpr int TITLE_LENGTH = 12;
 
 Cartridge::Cartridge(const std::filesystem::path& cartridge_path) {
@@ -11,10 +12,7 @@ Cartridge::Cartridge(const std::filesystem::path& cartridge_path) {
 
 void Cartridge::LoadCartridge(const std::filesystem::path& cartridge_path) {
     std::ifstream stream(cartridge_path.string().c_str(), std::ios::binary);
-    if (!stream.is_open()) {
-        LFATAL("could not open ROM: {}", cartridge_path.string());
-        std::exit(1);
-    }
+    ASSERT_MSG(stream.is_open(), "could not open ROM: {}", cartridge_path.string());
 
     rom_size = std::filesystem::file_size(cartridge_path);
     rom.resize(rom_size);
@@ -27,6 +25,9 @@ void Cartridge::LoadCartridge(const std::filesystem::path& cartridge_path) {
 std::string Cartridge::GetGameTitle() {
     std::string title;
 
-    std::copy_n(rom.begin() + 0xA0, TITLE_LENGTH, std::back_inserter(title));
+    const auto title_begin = rom.begin() + TITLE_OFFSET;
+    const auto title_end = std::find(title_begin, title_begin + TITLE_LENGTH, '\0');
+    std::copy(title_begin, title_end, std::back_inserter(title));
+
     return title;
 }
