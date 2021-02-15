@@ -27,10 +27,6 @@ void ARM7::Thumb_LSL(const u16 opcode) {
     const u8 rd = opcode & 0x7;
     const u32 source = GetRegister(rs);
 
-    if (!offset) {
-        offset = 32;
-    }
-
     SetRegister(rd, Shift(source, ShiftType::LSL, offset));
 
     cpsr.flags.negative = GetRegister(rd) & (1 << 31);
@@ -67,7 +63,6 @@ void ARM7::Thumb_ASR(const u16 opcode) {
 
     cpsr.flags.negative = GetRegister(rd) & (1 << 31);
     cpsr.flags.zero = (GetRegister(rd) == 0);
-    LWARN("verify ASR's carry flag");
 }
 
 void ARM7::Thumb_AddSubtract(const u16 opcode) {
@@ -102,7 +97,7 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
             SetRegister(rd, offset);
             break;
         case 0x1:
-            cpsr.flags.zero = (GetRegister(rd) == offset);
+            CMP(GetRegister(rd), offset);
             return;
         case 0x2:
             SetRegister(rd, ADD(GetRegister(rd), offset, true));
