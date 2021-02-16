@@ -32,7 +32,7 @@ void ARM7::ARM_SoftwareInterrupt([[maybe_unused]] const u32 opcode) {
 
     cpsr.flags.processor_mode = ProcessorMode::Supervisor;
     SetLR(lr);
-    cpsr.flags.irq = true;
+    cpsr.flags.irq_disabled = true;
     SetPC(0x00000008);
     SetSPSR(old_cpsr);
 }

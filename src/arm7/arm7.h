@@ -277,8 +277,8 @@ private:
             // FIXME: this struct assumes the user is running on a little-endian system.
             ProcessorMode processor_mode : 5;
             bool thumb_mode : 1;
-            bool fiq : 1;
-            bool irq : 1;
+            bool fiq_disabled : 1;
+            bool irq_disabled : 1;
             u32 : 20;
             bool overflow : 1;
             bool carry : 1;

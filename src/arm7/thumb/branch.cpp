@@ -66,7 +66,7 @@ void ARM7::Thumb_SoftwareInterrupt([[maybe_unused]] const u16 opcode) {
     cpsr.flags.processor_mode = ProcessorMode::Supervisor;
     SetLR(lr);
     cpsr.flags.thumb_mode = false;
-    cpsr.flags.irq = true;
+    cpsr.flags.irq_disabled = true;
     SetPC(0x00000008);
     SetSPSR(old_cpsr);
 }
