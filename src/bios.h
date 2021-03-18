@@ -12,7 +12,7 @@ public:
     BIOS(const std::filesystem::path& bios_filename);
 
     template <UnsignedIntegerMax32 T>
-    T Read(u32 addr) const {
+    [[nodiscard]] T Read(u32 addr) const {
         if constexpr (std::is_same_v<T, u8>) {
             return bios.at(addr);
         }

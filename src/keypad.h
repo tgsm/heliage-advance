@@ -19,7 +19,7 @@ public:
         L = (1 << 9),
     };
 
-    u16 GetState() const { return state; }
+    [[nodiscard]] u16 GetState() const { return state; }
 
     void PressButton(Buttons button) {
         state &= ~static_cast<u16>(button);

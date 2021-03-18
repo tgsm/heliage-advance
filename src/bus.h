@@ -11,15 +11,15 @@ class Bus {
 public:
     Bus(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu);
 
-    u8 Read8(u32 addr);
+    [[nodiscard]] u8 Read8(u32 addr);
     void Write8(u32 addr, u8 value);
-    u16 Read16(u32 addr);
+    [[nodiscard]] u16 Read16(u32 addr);
     void Write16(u32 addr, u16 value);
-    u32 Read32(u32 addr);
+    [[nodiscard]] u32 Read32(u32 addr);
     void Write32(u32 addr, u32 value);
 
-    Keypad& GetKeypad() { return keypad; }
-    const Keypad& GetKeypad() const { return keypad; }
+    [[nodiscard]] Keypad& GetKeypad() { return keypad; }
+    [[nodiscard]] const Keypad& GetKeypad() const { return keypad; }
 private:
     BIOS& bios;
     Cartridge& cartridge;

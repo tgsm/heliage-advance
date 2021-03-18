@@ -10,12 +10,13 @@ public:
 
     void Step(bool dump_registers);
 
-    inline u32 GetPC() const { return GetRegister(15); }
+    [[nodiscard]] inline u32 GetPC() const { return GetRegister(15); }
+
 private:
-    inline u32 GetSP() const { return GetRegister(13); }
+    [[nodiscard]] inline u32 GetSP() const { return GetRegister(13); }
     inline void SetSP(u32 value) { SetRegister(13, value); }
 
-    inline u32 GetLR() const { return GetRegister(14); }
+    [[nodiscard]] inline u32 GetLR() const { return GetRegister(14); }
     inline void SetLR(u32 value) { SetRegister(14, value); }
 
     inline void SetPC(u32 value) { SetRegister(15, value); }
@@ -154,7 +155,7 @@ private:
         }
     }
 
-    std::string GetRegAsStr(const u8 reg) const;
+    [[nodiscard]] std::string GetRegAsStr(const u8 reg) const;
 
     enum class ARM_Instructions {
         DataProcessing,
@@ -210,10 +211,10 @@ private:
         System = 0b11111,
     };
 
-    ARM_Instructions DecodeARMInstruction(const u32 opcode) const;
+    [[nodiscard]] ARM_Instructions DecodeARMInstruction(const u32 opcode) const;
     void ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode);
     void DisassembleARMInstruction(const ARM_Instructions instr, const u32 opcode);
-    Thumb_Instructions DecodeThumbInstruction(const u16 opcode) const;
+    [[nodiscard]] Thumb_Instructions DecodeThumbInstruction(const u16 opcode) const;
     void ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opcode);
     void DisassembleThumbInstruction(const Thumb_Instructions instr, const u16 opcode);
 
@@ -229,23 +230,23 @@ private:
         ROR,
     };
 
-    u32 Shift(const u64 operand_to_shift, const ShiftType shift_type, const u8 shift_amount);
-    u32 Shift_LSL(const u64 operand_to_shift, const u8 shift_amount);
-    u32 Shift_LSR(const u64 operand_to_shift, const u8 shift_amount);
-    u32 Shift_ASR(const u64 operand_to_shift, const u8 shift_amount);
-    u32 Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount);
+    [[nodiscard]] u32 Shift(const u64 operand_to_shift, const ShiftType shift_type, const u8 shift_amount);
+    [[nodiscard]] u32 Shift_LSL(const u64 operand_to_shift, const u8 shift_amount);
+    [[nodiscard]] u32 Shift_LSR(const u64 operand_to_shift, const u8 shift_amount);
+    [[nodiscard]] u32 Shift_ASR(const u64 operand_to_shift, const u8 shift_amount);
+    [[nodiscard]] u32 Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount);
 
-    u32 ADC(const u32 operand1, const u32 operand2, const bool change_flags);
-    u32 ADD(const u32 operand1, const u32 operand2, const bool change_flags);
+    [[nodiscard]] u32 ADC(const u32 operand1, const u32 operand2, const bool change_flags);
+    [[nodiscard]] u32 ADD(const u32 operand1, const u32 operand2, const bool change_flags);
     void CMN(const u32 operand1, const u32 operand2);
     void CMP(const u32 operand1, const u32 operand2);
-    u32 RSC(const u32 operand1, const u32 operand2, const bool change_flags);
-    u32 SBC(const u32 operand1, const u32 operand2, const bool change_flags);
-    u32 SUB(const u32 operand1, const u32 operand2, const bool change_flags);
+    [[nodiscard]] u32 RSC(const u32 operand1, const u32 operand2, const bool change_flags);
+    [[nodiscard]] u32 SBC(const u32 operand1, const u32 operand2, const bool change_flags);
+    [[nodiscard]] u32 SUB(const u32 operand1, const u32 operand2, const bool change_flags);
     void TEQ(const u32 operand1, const u32 operand2);
 
-    bool CheckConditionCode(const u8 cond);
-    std::string GetConditionCode(const u8 cond);
+    [[nodiscard]] bool CheckConditionCode(const u8 cond);
+    [[nodiscard]] std::string GetConditionCode(const u8 cond);
 
     // Instruction pipeline
     std::array<u32, 2> pipeline {};

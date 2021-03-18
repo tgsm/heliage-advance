@@ -15,12 +15,12 @@ public:
 
     void SetDISPCNT(u16 value) { dispcnt.raw = value; }
 
-    u16 GetDISPSTAT() const { return dispstat.raw; }
+    [[nodiscard]] u16 GetDISPSTAT() const { return dispstat.raw; }
 
-    u16 GetVCOUNT() const { return vcount; }
+    [[nodiscard]] u16 GetVCOUNT() const { return vcount; }
 
     template <UnsignedIntegerMax32 T>
-    T ReadVRAM(u32 addr) const {
+    [[nodiscard]] T ReadVRAM(u32 addr) const {
         if constexpr (std::is_same_v<T, u8>) {
             return vram.at(addr);
         }
@@ -63,7 +63,7 @@ public:
 
     void WritePRAM8(u32 addr, u8 value) { pram[addr] = value; }
 
-    u16 ReadPRAM(u32 addr) const;
+    [[nodiscard]] u16 ReadPRAM(u32 addr) const;
 
 private:
     std::array<u8, 0x18000> vram;
