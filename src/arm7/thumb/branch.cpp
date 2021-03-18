@@ -86,11 +86,10 @@ void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
     s16 offset = opcode & 0x7FF;
     const u16 next_offset = next_opcode & 0x7FF;
 
-    u32 lr = GetLR();
     u32 pc = GetPC();
 
     offset <<= 5;
-    lr = pc + (static_cast<s32>(offset) << 7);
+    u32 lr = pc + (static_cast<s32>(offset) << 7);
 
     pc = lr + (next_offset << 1);
     lr = GetPC() | 0b1;

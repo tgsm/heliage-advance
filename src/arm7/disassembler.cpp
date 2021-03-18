@@ -1187,14 +1187,13 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
     s16 offset = opcode & 0x7FF;
     const u16 next_offset = next_opcode & 0x7FF;
 
-    u32 lr = GetLR();
     u32 pc = GetPC();
 
     const bool first_instruction = ((opcode >> 11) & 0b1) == 0b0;
     ASSERT(first_instruction);
 
     offset <<= 5;
-    lr = pc + (static_cast<s32>(offset) << 7);
+    u32 lr = pc + (static_cast<s32>(offset) << 7);
 
     const bool second_instruction = ((next_opcode >> 11) & 0b1) == 0b1;
     ASSERT(second_instruction);
