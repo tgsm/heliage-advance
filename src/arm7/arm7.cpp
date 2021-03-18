@@ -2,8 +2,8 @@
 #include "arm7.h"
 #include "logging.h"
 
-ARM7::ARM7(Bus& bus, PPU& ppu)
-    : bus(bus), ppu(ppu) {
+ARM7::ARM7(Bus& bus_, PPU& ppu_)
+    : bus(bus_), ppu(ppu_) {
     // Initialize registers
     cpsr.flags.processor_mode = ProcessorMode::System;
 

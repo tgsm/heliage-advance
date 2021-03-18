@@ -3,8 +3,8 @@
 #include "logging.h"
 #include "ppu.h"
 
-PPU::PPU(Bus& bus)
-    : bus(bus) {
+PPU::PPU(Bus& bus_)
+    : bus(bus_) {
     vram.fill(0x00);
     pram.fill(0x00);
     framebuffer.fill(0x00);

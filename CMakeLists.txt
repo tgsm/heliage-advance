@@ -13,7 +13,12 @@ if (${HA_FRONTEND} MATCHES "SDL2")
     add_compile_definitions("HA_FRONTEND_SDL")
 endif()
 
-add_compile_options(-Wall -Wextra -Wpedantic)
+add_compile_options(
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(

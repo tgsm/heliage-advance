@@ -6,7 +6,7 @@
 
 class ARM7 {
 public:
-    ARM7(Bus& bus, PPU& ppu);
+    ARM7(Bus& bus_, PPU& ppu_);
 
     void Step(bool dump_registers);
 

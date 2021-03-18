@@ -1,8 +1,8 @@
 #include "bus.h"
 #include "logging.h"
 
-Bus::Bus(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu)
-    : bios(bios), cartridge(cartridge), keypad(keypad), ppu(ppu) {
+Bus::Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_)
+    : bios(bios_), cartridge(cartridge_), keypad(keypad_), ppu(ppu_) {
 }
 
 u8 Bus::Read8(u32 addr) {

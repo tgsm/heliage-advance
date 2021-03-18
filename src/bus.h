@@ -9,7 +9,7 @@
 
 class Bus {
 public:
-    Bus(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu);
+    Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_);
 
     [[nodiscard]] u8 Read8(u32 addr);
     void Write8(u32 addr, u8 value);
