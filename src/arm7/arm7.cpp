@@ -2,8 +2,8 @@
 #include "arm7.h"
 #include "logging.h"
 
-ARM7::ARM7(MMU& mmu, PPU& ppu)
-    : mmu(mmu), ppu(ppu) {
+ARM7::ARM7(Bus& bus, PPU& ppu)
+    : bus(bus), ppu(ppu) {
     // Initialize registers
     cpsr.flags.processor_mode = ProcessorMode::System;
 
@@ -21,7 +21,7 @@ void ARM7::Step(bool dump_registers) {
 
         pipeline[0] = pipeline[1];
         gpr[15] += 2;
-        pipeline[1] = mmu.Read16(gpr[15]);
+        pipeline[1] = bus.Read16(gpr[15]);
 
         const Thumb_Instructions instr = DecodeThumbInstruction(opcode);
         if (dump_registers)
@@ -33,7 +33,7 @@ void ARM7::Step(bool dump_registers) {
 
         pipeline[0] = pipeline[1];
         gpr[15] += 4;
-        pipeline[1] = mmu.Read32(gpr[15]);
+        pipeline[1] = bus.Read32(gpr[15]);
 
         const ARM_Instructions instr = DecodeARMInstruction(opcode);
         if (dump_registers)
@@ -215,16 +215,16 @@ void ARM7::DumpRegisters() {
 
 void ARM7::FillPipeline() {
     if (cpsr.flags.thumb_mode) {
-        pipeline[0] = mmu.Read16(gpr[15]);
+        pipeline[0] = bus.Read16(gpr[15]);
         // LDEBUG("r15={:08X} p0={:04X}", gpr[15], pipeline[0]);
         gpr[15] += 2;
-        pipeline[1] = mmu.Read16(gpr[15]);
+        pipeline[1] = bus.Read16(gpr[15]);
         // LDEBUG("r15={:08X} p1={:04X}", gpr[15], pipeline[1]);
     } else {
-        pipeline[0] = mmu.Read32(gpr[15]);
+        pipeline[0] = bus.Read32(gpr[15]);
         // LDEBUG("r15={:08X} p0={:08X}", gpr[15], pipeline[0]);
         gpr[15] += 4;
-        pipeline[1] = mmu.Read32(gpr[15]);
+        pipeline[1] = bus.Read32(gpr[15]);
         // LDEBUG("r15={:08X} p1={:08X}", gpr[15], pipeline[1]);
     }
 }

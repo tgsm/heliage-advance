@@ -82,7 +82,7 @@ void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
 }
 
 void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
-    const u16 next_opcode = mmu.Read16(GetPC() - 2);
+    const u16 next_opcode = bus.Read16(GetPC() - 2);
     s16 offset = opcode & 0x7FF;
     const u16 next_offset = next_opcode & 0x7FF;
 

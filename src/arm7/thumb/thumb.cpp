@@ -232,7 +232,7 @@ void ARM7::Thumb_PCRelativeLoad(const u16 opcode) {
     const u8 rd = (opcode >> 8) & 0x7;
     const u8 imm = opcode & 0xFF;
 
-    SetRegister(rd, mmu.Read32((GetPC() + (imm << 2)) & ~0x3));
+    SetRegister(rd, bus.Read32((GetPC() + (imm << 2)) & ~0x3));
 }
 
 void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
@@ -244,15 +244,15 @@ void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
 
     if (load_from_memory) {
         if (transfer_byte) {
-            SetRegister(rd, mmu.Read8(GetRegister(rb) + GetRegister(ro)));
+            SetRegister(rd, bus.Read8(GetRegister(rb) + GetRegister(ro)));
         } else {
-            SetRegister(rd, mmu.Read32(GetRegister(rb) + GetRegister(ro)));
+            SetRegister(rd, bus.Read32(GetRegister(rb) + GetRegister(ro)));
         }
     } else {
         if (transfer_byte) {
-            mmu.Write8(GetRegister(rb) + GetRegister(ro), GetRegister(rd) & 0xFF);
+            bus.Write8(GetRegister(rb) + GetRegister(ro), GetRegister(rd) & 0xFF);
         } else {
-            mmu.Write32(GetRegister(rb) + GetRegister(ro), GetRegister(rd));
+            bus.Write32(GetRegister(rb) + GetRegister(ro), GetRegister(rd));
         }
     }
 }
@@ -266,7 +266,7 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
 
     if (sign_extend) {
         if (h_flag) {
-            SetRegister(rd, mmu.Read16(GetRegister(rb) + GetRegister(ro)));
+            SetRegister(rd, bus.Read16(GetRegister(rb) + GetRegister(ro)));
 
             // Set bits 31-16 of Rd to what's in bit 15.
             if (!(GetRegister(rd) & (1 << 15))) {
@@ -277,7 +277,7 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
                 SetRegister(rd, GetRegister(rd) | (1 << i));
             }
         } else {
-            SetRegister(rd, mmu.Read8(GetRegister(rb) + GetRegister(ro)));
+            SetRegister(rd, bus.Read8(GetRegister(rb) + GetRegister(ro)));
 
             // Set bits 31-8 of Rd to what's in bit 15.
             if (!(GetRegister(rd) & (1 << 7))) {
@@ -290,9 +290,9 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
         }
     } else {
         if (h_flag) {
-            SetRegister(rd, mmu.Read16(GetRegister(rb) + GetRegister(ro)));
+            SetRegister(rd, bus.Read16(GetRegister(rb) + GetRegister(ro)));
         } else {
-            mmu.Write16(GetRegister(rb) + GetRegister(ro), GetRegister(rd));
+            bus.Write16(GetRegister(rb) + GetRegister(ro), GetRegister(rd));
         }
     }
 }
@@ -321,7 +321,7 @@ void ARM7::Thumb_StoreByteWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    mmu.Write8(GetRegister(rb) + offset, GetRegister(rd));
+    bus.Write8(GetRegister(rb) + offset, GetRegister(rd));
 }
 
 void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
@@ -329,7 +329,7 @@ void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    SetRegister(rd, mmu.Read8(GetRegister(rb) + offset));
+    SetRegister(rd, bus.Read8(GetRegister(rb) + offset));
 }
 
 void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
@@ -337,7 +337,7 @@ void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    mmu.Write32(GetRegister(rb) + (offset << 2), GetRegister(rd));
+    bus.Write32(GetRegister(rb) + (offset << 2), GetRegister(rd));
 }
 
 void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
@@ -345,7 +345,7 @@ void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
     const u8 rb = (opcode >> 3) & 0x7;
     const u8 rd = opcode & 0x7;
 
-    SetRegister(rd, mmu.Read32(GetRegister(rb) + (offset << 2)));
+    SetRegister(rd, bus.Read32(GetRegister(rb) + (offset << 2)));
 }
 
 void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
@@ -355,9 +355,9 @@ void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
     const u8 rd = opcode & 0x7;
 
     if (load_from_memory) {
-        SetRegister(rd, mmu.Read16(GetRegister(rb) + (imm << 1)));
+        SetRegister(rd, bus.Read16(GetRegister(rb) + (imm << 1)));
     } else {
-        mmu.Write16(GetRegister(rb) + (imm << 1), static_cast<u16>(GetRegister(rd)));
+        bus.Write16(GetRegister(rb) + (imm << 1), static_cast<u16>(GetRegister(rd)));
     }
 }
 
@@ -367,9 +367,9 @@ void ARM7::Thumb_SPRelativeLoadStore(const u16 opcode) {
     const u8 imm = opcode & 0xFF;
 
     if (load_from_memory) {
-        SetRegister(rd, mmu.Read32(GetSP() + (imm << 2)));
+        SetRegister(rd, bus.Read32(GetSP() + (imm << 2)));
     } else {
-        mmu.Write32(GetSP() + (imm << 2), GetRegister(rd));
+        bus.Write32(GetSP() + (imm << 2), GetRegister(rd));
     }
 }
 
@@ -412,11 +412,11 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
         }
 
         if (load_from_memory) {
-            SetPC(mmu.Read32(GetSP()) & ~0b1);
+            SetPC(bus.Read32(GetSP()) & ~0b1);
             SetSP(GetSP() + 4);
         } else {
             SetSP(GetSP() - 4);
-            mmu.Write32(GetSP(), GetLR());
+            bus.Write32(GetSP(), GetLR());
         }
 
         return;
@@ -424,23 +424,23 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
 
     if (load_from_memory) {
         for (u8 reg : set_bits) {
-            SetRegister(reg, mmu.Read32(GetSP()));
+            SetRegister(reg, bus.Read32(GetSP()));
             SetSP(GetSP() + 4);
         }
 
         if (store_lr_load_pc) {
-            SetPC(mmu.Read32(GetSP()) & ~0b1);
+            SetPC(bus.Read32(GetSP()) & ~0b1);
             SetSP(GetSP() + 4);
         }
     } else {
         if (store_lr_load_pc) {
             SetSP(GetSP() - 4);
-            mmu.Write32(GetSP(), GetLR());
+            bus.Write32(GetSP(), GetLR());
         }
 
         for (u8 reg : set_bits | ranges::views::reverse) {
             SetSP(GetSP() - 4);
-            mmu.Write32(GetSP(), GetRegister(reg));
+            bus.Write32(GetSP(), GetRegister(reg));
         }
     }
 }
@@ -465,12 +465,12 @@ void ARM7::Thumb_MultipleLoadStore(const u16 opcode) {
 
     if (load_from_memory) {
         for (u8 i : set_bits) {
-            SetRegister(i, mmu.Read32(GetRegister(rb)));
+            SetRegister(i, bus.Read32(GetRegister(rb)));
             SetRegister(rb, GetRegister(rb) + 4);
         }
     } else {
         for (u8 reg : set_bits) {
-            mmu.Write32(GetRegister(rb), GetRegister(reg));
+            bus.Write32(GetRegister(rb), GetRegister(reg));
             SetRegister(rb, GetRegister(rb) + 4);
         }
     }

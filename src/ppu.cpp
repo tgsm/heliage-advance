@@ -1,10 +1,10 @@
+#include "bus.h"
 #include "frontend/frontend.h"
 #include "logging.h"
-#include "mmu.h"
 #include "ppu.h"
 
-PPU::PPU(MMU& mmu)
-    : mmu(mmu) {
+PPU::PPU(Bus& bus)
+    : bus(bus) {
     vram.fill(0x00);
     pram.fill(0x00);
     framebuffer.fill(0x00);
@@ -63,7 +63,7 @@ void PPU::EndHBlank() {
         DisplayFramebuffer(framebuffer);
         framebuffer.fill(0x0000);
 
-        HandleFrontendEvents(&mmu.GetKeypad());
+        HandleFrontendEvents(&bus.GetKeypad());
     } else if (vcount >= 160) {
         StartVBlankLine();
     } else {

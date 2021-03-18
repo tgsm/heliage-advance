@@ -4,11 +4,11 @@
 #include <functional>
 #include "types.h"
 
-class MMU;
+class Bus;
 
 class PPU {
 public:
-    PPU(MMU& mmu);
+    PPU(Bus& bus);
 
     void AdvanceCycles(u8 cycles);
     void Tick();
@@ -70,7 +70,7 @@ private:
     std::array<u8, 0x400> pram; // Palette RAM
     std::array<u16, 240 * 160> framebuffer;
 
-    MMU& mmu;
+    Bus& bus;
 
     u64 vcycles = 0;
 

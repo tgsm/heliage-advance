@@ -1181,7 +1181,7 @@ void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
-    const u16 next_opcode = mmu.Read16(GetPC() - 2);
+    const u16 next_opcode = bus.Read16(GetPC() - 2);
     // Used for LTRACE_DOUBLETHUMB
     const u32 double_opcode = (static_cast<u32>(opcode) << 16) | next_opcode;
     s16 offset = opcode & 0x7FF;

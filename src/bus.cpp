@@ -1,11 +1,11 @@
+#include "bus.h"
 #include "logging.h"
-#include "mmu.h"
 
-MMU::MMU(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu)
+Bus::Bus(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu)
     : bios(bios), cartridge(cartridge), keypad(keypad), ppu(ppu) {
 }
 
-u8 MMU::Read8(u32 addr) {
+u8 Bus::Read8(u32 addr) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
         case 0x0:
@@ -51,30 +51,33 @@ u8 MMU::Read8(u32 addr) {
                 return 0;
             }
             return cartridge.Read<u8>(masked_addr & 0x1FFFFFF);
+
         default:
             LERROR("unrecognized read8 from 0x{:08X}", addr);
             return 0xFF;
     }
 }
 
-void MMU::Write8(u32 addr, u8 value) {
+void Bus::Write8(u32 addr, u8 value) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
         case 0x2:
             LDEBUG("write8 0x{:02X} to 0x{:08X} (WRAM onboard)", value, masked_addr);
             wram_onboard[masked_addr & 0x3FFFF] = value;
             return;
+
         case 0x3:
             LDEBUG("write8 0x{:02X} to 0x{:08X} (WRAM on-chip)", value, masked_addr);
             wram_onchip[masked_addr & 0x7FFF] = value;
             return;
+
         default:
             LERROR("unrecognized write8 0x{:02X} to 0x{:08X}", value, masked_addr);
             return;
     }
 }
 
-u16 MMU::Read16(u32 addr) {
+u16 Bus::Read16(u32 addr) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
         case 0x0:
@@ -108,7 +111,7 @@ u16 MMU::Read16(u32 addr) {
                     return ppu.GetDISPSTAT();
                 case 0x4000006:
                     return ppu.GetVCOUNT();
-                case 0x4000130: // Keypad input
+                case 0x4000130:
                     return keypad.GetState();
                 default:
                     LERROR("unrecognized read16 from IO register 0x{:08X}", masked_addr);
@@ -141,7 +144,7 @@ u16 MMU::Read16(u32 addr) {
     }
 }
 
-void MMU::Write16(u32 addr, u16 value) {
+void Bus::Write16(u32 addr, u16 value) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
         case 0x2:
@@ -166,7 +169,7 @@ void MMU::Write16(u32 addr, u16 value) {
                     ppu.SetDISPCNT(value);
                     return;
                 default:
-                    LERROR("unrecognized write16 0x{:04X} to 0x{:08X} (IO)", value, masked_addr);
+                    LERROR("unrecognized write16 0x{:04X} to IO register 0x{:08X}", value, masked_addr);
                     return;
             }
 
@@ -195,7 +198,7 @@ void MMU::Write16(u32 addr, u16 value) {
     }
 }
 
-u32 MMU::Read32(u32 addr) {
+u32 Bus::Read32(u32 addr) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
         case 0x0:
@@ -230,7 +233,7 @@ u32 MMU::Read32(u32 addr) {
                 case 0x4000130:
                     return keypad.GetState();
                 default:
-                    LERROR("unrecognized read32 from 0x{:08X} (IO)", masked_addr);
+                    LERROR("unrecognized read32 from IO register 0x{:08X}", masked_addr);
                     return 0xFFFFFFFF;
             }
 
@@ -258,7 +261,7 @@ u32 MMU::Read32(u32 addr) {
     }
 }
 
-void MMU::Write32(u32 addr, u32 value) {
+void Bus::Write32(u32 addr, u32 value) {
     const u32 masked_addr = addr & 0x0FFFFFFF;
     switch ((masked_addr >> 24) & 0xF) {
         case 0x2:
@@ -283,7 +286,7 @@ void MMU::Write32(u32 addr, u32 value) {
                     ppu.SetDISPCNT(value);
                     return;
                 default:
-                    LERROR("unrecognized write32 0x{:08X} to 0x{:08X} (IO)", value, masked_addr);
+                    LERROR("unrecognized write32 0x{:08X} to IO register 0x{:08X}", value, masked_addr);
                     return;
             }
 

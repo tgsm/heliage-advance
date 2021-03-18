@@ -1,12 +1,12 @@
 #pragma once
 
+#include "bus.h"
 #include "logging.h"
-#include "mmu.h"
 #include "types.h"
 
 class ARM7 {
 public:
-    ARM7(MMU& mmu, PPU& ppu);
+    ARM7(Bus& bus, PPU& ppu);
 
     void Step(bool dump_registers);
 
@@ -291,7 +291,7 @@ private:
     PSR spsr_irq;
     PSR spsr_und;
 
-    MMU& mmu;
+    Bus& bus;
     PPU& ppu;
 
     void ARM_DataProcessing(const u32 opcode);

@@ -30,20 +30,20 @@ set(SOURCES
     src/arm7/thumb/branch.cpp
     src/arm7/thumb/thumb.cpp
     src/bios.cpp
+    src/bus.cpp
     src/cartridge.cpp
     src/gba.cpp
     src/main.cpp
-    src/mmu.cpp
     src/ppu.cpp
 )
 
 set(HEADERS
     src/arm7/arm7.h
     src/bios.h
+    src/bus.h
     src/cartridge.h
     src/gba.h
     src/keypad.h
-    src/mmu.h
     src/ppu.h
     src/types.h
 )

@@ -67,11 +67,11 @@ void ARM7::ARM_SingleDataSwap(const u32 opcode) {
     const u8 rm = opcode & 0xF;
 
     if (swap_byte) {
-        SetRegister(rd, mmu.Read8(GetRegister(rn)));
-        mmu.Write8(GetRegister(rn), GetRegister(rm));
+        SetRegister(rd, bus.Read8(GetRegister(rn)));
+        bus.Write8(GetRegister(rn), GetRegister(rm));
     } else {
-        SetRegister(rd, mmu.Read32(GetRegister(rn)));
-        mmu.Write32(GetRegister(rn), GetRegister(rm));
+        SetRegister(rd, bus.Read32(GetRegister(rn)));
+        bus.Write32(GetRegister(rn), GetRegister(rm));
     }
 }
 
@@ -109,13 +109,13 @@ void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
             address -= GetRegister(rm);
         }
 
-        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
+        bus.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
 
         if (write_back) {
             SetRegister(rn, address);
         }
     } else {
-        mmu.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
+        bus.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
         if (add_offset_to_base) {
             address += GetRegister(rm);
         } else {
@@ -170,9 +170,9 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
         }
 
         if (sign) {
-            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
+            SetRegister(rd, static_cast<s16>(bus.Read16(address)));
         } else {
-            SetRegister(rd, mmu.Read16(address));
+            SetRegister(rd, bus.Read16(address));
         }
 
         if (write_back) {
@@ -180,9 +180,9 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
         }
     } else {
         if (sign) {
-            SetRegister(rd, static_cast<s16>(mmu.Read16(address)));
+            SetRegister(rd, static_cast<s16>(bus.Read16(address)));
         } else {
-            SetRegister(rd, mmu.Read16(address));
+            SetRegister(rd, bus.Read16(address));
         }
 
         if (add_offset_to_base) {
@@ -214,13 +214,13 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
             address -= offset;
         }
 
-        mmu.Write16(address, sign ? static_cast<s16>(value) : value);
+        bus.Write16(address, sign ? static_cast<s16>(value) : value);
 
         if (write_back) {
             SetRegister(rn, address);
         }
     } else {
-        mmu.Write16(address, sign ? static_cast<s16>(value) : value);
+        bus.Write16(address, sign ? static_cast<s16>(value) : value);
         if (add_offset_to_base) {
             address += offset;
         } else {
@@ -249,13 +249,13 @@ void ARM7::ARM_LoadSignedByte(const u32 opcode) {
             address -= offset;
         }
 
-        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
+        SetRegister(rd, static_cast<s8>(bus.Read8(address)));
 
         if (write_back) {
             SetRegister(rn, address);
         }
     } else {
-        SetRegister(rd, static_cast<s8>(mmu.Read8(address)));
+        SetRegister(rd, static_cast<s8>(bus.Read8(address)));
 
         if (add_offset_to_base) {
             address += offset;
@@ -335,15 +335,15 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
 
         if constexpr (load_from_memory) {
             if constexpr (transfer_byte) {
-                SetRegister(rd, mmu.Read8(address));
+                SetRegister(rd, bus.Read8(address));
             } else {
-                SetRegister(rd, mmu.Read32(address));
+                SetRegister(rd, bus.Read32(address));
             }
         } else {
             if constexpr (transfer_byte) {
-                mmu.Write8(address, GetRegister(rd) & 0xFF);
+                bus.Write8(address, GetRegister(rd) & 0xFF);
             } else {
-                mmu.Write32(address, GetRegister(rd));
+                bus.Write32(address, GetRegister(rd));
             }
         }
 
@@ -357,15 +357,15 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
 
         if constexpr (load_from_memory) {
             if constexpr (transfer_byte) {
-                SetRegister(rd, mmu.Read8(address));
+                SetRegister(rd, bus.Read8(address));
             } else {
-                SetRegister(rd, mmu.Read32(address));
+                SetRegister(rd, bus.Read32(address));
             }
         } else {
             if constexpr (transfer_byte) {
-                mmu.Write8(address, GetRegister(rd) & 0xFF);
+                bus.Write8(address, GetRegister(rd) & 0xFF);
             } else {
-                mmu.Write32(address, GetRegister(rd));
+                bus.Write32(address, GetRegister(rd));
             }
         }
 
@@ -409,9 +409,9 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
             for (u8 reg : set_bits) {
                 if (pre_indexing) {
                     address += 4;
-                    SetRegister(reg, mmu.Read32(address));
+                    SetRegister(reg, bus.Read32(address));
                 } else {
-                    SetRegister(reg, mmu.Read32(address));
+                    SetRegister(reg, bus.Read32(address));
                     address += 4;
                 }
             }
@@ -419,9 +419,9 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
             for (u8 reg : set_bits | ranges::views::reverse) {
                 if (pre_indexing) {
                     address -= 4;
-                    SetRegister(reg, mmu.Read32(address));
+                    SetRegister(reg, bus.Read32(address));
                 } else {
-                    SetRegister(reg, mmu.Read32(address));
+                    SetRegister(reg, bus.Read32(address));
                     address -= 4;
                 }
             }
@@ -431,9 +431,9 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
             for (u8 reg : set_bits) {
                 if (pre_indexing) {
                     address += 4;
-                    mmu.Write32(address, GetRegister(reg));
+                    bus.Write32(address, GetRegister(reg));
                 } else {
-                    mmu.Write32(address, GetRegister(reg));
+                    bus.Write32(address, GetRegister(reg));
                     address += 4;
                 }
             }
@@ -441,9 +441,9 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
             for (u8 reg : set_bits | ranges::views::reverse) {
                 if (pre_indexing) {
                     address -= 4;
-                    mmu.Write32(address, GetRegister(reg));
+                    bus.Write32(address, GetRegister(reg));
                 } else {
-                    mmu.Write32(address, GetRegister(reg));
+                    bus.Write32(address, GetRegister(reg));
                     address -= 4;
                 }
             }

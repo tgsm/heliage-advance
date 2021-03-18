@@ -7,9 +7,9 @@
 #include "ppu.h"
 #include "types.h"
 
-class MMU {
+class Bus {
 public:
-    MMU(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu);
+    Bus(BIOS& bios, Cartridge& cartridge, Keypad& keypad, PPU& ppu);
 
     u8 Read8(u32 addr);
     void Write8(u32 addr, u8 value);

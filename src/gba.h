@@ -2,9 +2,9 @@
 
 #include "arm7/arm7.h"
 #include "bios.h"
+#include "bus.h"
 #include "cartridge.h"
 #include "keypad.h"
-#include "mmu.h"
 #include "ppu.h"
 
 class GBA {
@@ -13,7 +13,7 @@ public:
 
     void Run();
 private:
-    MMU mmu;
+    Bus bus;
     ARM7 arm7;
     PPU ppu;
     Keypad keypad;
