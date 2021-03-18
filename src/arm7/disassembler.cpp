@@ -11,15 +11,6 @@ void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opc
         case ARM_Instructions::DataProcessing:
             ARM_DisassembleDataProcessing(opcode);
             break;
-        case ARM_Instructions::MRS:
-            ARM_DisassembleMRS(opcode);
-            break;
-        case ARM_Instructions::MSR_AllBits:
-            ARM_DisassembleMSR<false>(opcode);
-            break;
-        case ARM_Instructions::MSR_FlagBits:
-            ARM_DisassembleMSR<true>(opcode);
-            break;
         case ARM_Instructions::Multiply:
             ARM_DisassembleMultiply(opcode);
             break;
@@ -153,6 +144,21 @@ std::string ARM7::GetConditionCode(const u8 cond) {
 }
 
 void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
+    if ((opcode & 0x0FBF0FFF) == 0x010F0000) {
+        ARM_DisassembleMRS(opcode);
+        return;
+    }
+
+    if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
+        ARM_DisassembleMSR<false>(opcode);
+        return;
+    }
+
+    if ((opcode & 0x0DBFF000) == 0x0128F000) {
+        ARM_DisassembleMSR<true>(opcode);
+        return;
+    }
+
     const u8 cond = (opcode >> 28) & 0xF;
     const bool op2_is_immediate = (opcode >> 25) & 0b1;
     const u8 op = (opcode >> 21) & 0xF;

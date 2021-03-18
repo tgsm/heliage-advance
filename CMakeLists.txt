@@ -27,7 +27,6 @@ set(SOURCES
     src/arm7/arm/arm.cpp
     src/arm7/arm/branch.cpp
     src/arm7/arm/data_processing.cpp
-    src/arm7/arm/psr_transfer.cpp
     src/arm7/thumb/branch.cpp
     src/arm7/thumb/thumb.cpp
     src/bios.cpp

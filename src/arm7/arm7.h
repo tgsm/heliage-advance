@@ -158,9 +158,6 @@ private:
 
     enum class ARM_Instructions {
         DataProcessing,
-        MRS,
-        MSR_AllBits,
-        MSR_FlagBits,
         Multiply,
         MultiplyLong,
         SingleDataSwap,
