@@ -6,7 +6,7 @@
 
 class Cartridge {
 public:
-    Cartridge(const std::filesystem::path& cartridge_path);
+    explicit Cartridge(const std::filesystem::path& cartridge_path);
 
     [[nodiscard]] std::string GetGameTitle();
 

@@ -8,7 +8,7 @@ class Bus;
 
 class PPU {
 public:
-    PPU(Bus& bus);
+    explicit PPU(Bus& bus);
 
     void AdvanceCycles(u8 cycles);
     void Tick();

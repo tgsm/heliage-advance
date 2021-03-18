@@ -9,7 +9,7 @@ constexpr int BIOS_SIZE = 16 * 1024; // 16 KB
 
 class BIOS {
 public:
-    BIOS(const std::filesystem::path& bios_filename);
+    explicit BIOS(const std::filesystem::path& bios_filename);
 
     template <UnsignedIntegerMax32 T>
     [[nodiscard]] T Read(u32 addr) const {
