@@ -28,4 +28,34 @@ private:
 
     std::array<u8, 0x40000> wram_onboard {};
     std::array<u8, 0x8000> wram_onchip {};
+
+    union DMACNT {
+        u16 raw;
+        struct {
+            u16 : 5;
+            u16 dest_addr_control : 2;
+            u16 src_addr_control : 2;
+            bool repeat : 1;
+            bool transfer_type_is_32bit : 1;
+            bool gamepak_dma3_drq : 1;
+            u16 start_timing : 2;
+            bool irq_at_end_of_word_count : 1;
+            bool enable : 1;
+        } flags;
+    };
+
+    struct DMAChannel {
+        u32 source_address;
+        u32 destination_address;
+        u16 word_count;
+        DMACNT control;
+    };
+
+    std::array<DMAChannel, 4> dma_channels {};
+
+    template <u8 dma_channel_no>
+    void SetDMAControl(u16 value);
+
+    template <u8 dma_channel_no>
+    void RunDMATransfer();
 };

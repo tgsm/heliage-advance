@@ -292,6 +292,46 @@ void Bus::Write32(u32 addr, u32 value) {
                 case 0x4000000:
                     ppu.SetDISPCNT(value);
                     return;
+                case 0x40000B0:
+                    dma_channels[0].source_address = value;
+                    return;
+                case 0x40000B4:
+                    dma_channels[0].destination_address = value;
+                    return;
+                case 0x40000B8:
+                    dma_channels[0].word_count = value & 0xFFFF;
+                    SetDMAControl<0>(value >> 16);
+                    return;
+                case 0x40000BC:
+                    dma_channels[1].source_address = value;
+                    return;
+                case 0x40000C0:
+                    dma_channels[1].destination_address = value;
+                    return;
+                case 0x40000C4:
+                    dma_channels[1].word_count = value & 0xFFFF;
+                    SetDMAControl<1>(value >> 16);
+                    return;
+                case 0x40000C8:
+                    dma_channels[2].source_address = value;
+                    return;
+                case 0x40000CC:
+                    dma_channels[2].destination_address = value;
+                    return;
+                case 0x40000D0:
+                    dma_channels[2].word_count = value & 0xFFFF;
+                    SetDMAControl<2>(value >> 16);
+                    return;
+                case 0x40000D4:
+                    dma_channels[3].source_address = value;
+                    return;
+                case 0x40000D8:
+                    dma_channels[3].destination_address = value;
+                    return;
+                case 0x40000DC:
+                    dma_channels[3].word_count = value & 0xFFFF;
+                    SetDMAControl<3>(value >> 16);
+                    return;
                 default:
                     LERROR("unrecognized write32 0x{:08X} to IO register 0x{:08X}", value, masked_addr);
                     return;
@@ -320,4 +360,41 @@ void Bus::Write32(u32 addr, u32 value) {
         default:
             LERROR("unrecognized write32 0x{:08X} to 0x{:08X}", value, addr);
     }
+}
+
+template <u8 dma_channel_no>
+void Bus::SetDMAControl(const u16 value) {
+    static_assert(dma_channel_no < 4);
+    DMAChannel& channel = dma_channels[dma_channel_no];
+
+    channel.control.raw = value;
+    if (channel.control.flags.enable) {
+        RunDMATransfer<dma_channel_no>();
+    }
+}
+
+template <u8 dma_channel_no>
+void Bus::RunDMATransfer() {
+    DMAChannel& channel = dma_channels[dma_channel_no];
+
+    const bool transfer_32bit = channel.control.flags.transfer_type_is_32bit;
+    LINFO("Running {}bit DMA{} transfer (source={:08X}, destination={:08X}, words={})", transfer_32bit ? 32 : 16,
+                                                                                        dma_channel_no,
+                                                                                        channel.source_address,
+                                                                                        channel.destination_address,
+                                                                                        channel.word_count);
+
+    if (transfer_32bit) {
+        for (std::size_t i = 0; i < channel.word_count; i++) {
+            const u32 offset = i * sizeof(u32);
+            Write32(channel.destination_address + offset, Read32(channel.source_address + offset));
+        }
+    } else {
+        for (std::size_t i = 0; i < channel.word_count; i++) {
+            const u32 offset = i * sizeof(u16);
+            Write16(channel.destination_address + offset, Read16(channel.source_address + offset));
+        }
+    }
+
+    // channel.control.flags.enable = false;
 }
