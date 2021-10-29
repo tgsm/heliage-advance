@@ -3,12 +3,12 @@
 #include "logging.h"
 #include "ppu.h"
 
+constexpr u32 TILE_WIDTH = 8;
+constexpr u32 TILE_HEIGHT = 8;
+constexpr u32 TILE_SIZE_IN_BYTES = 32;
+
 PPU::PPU(Bus& bus_)
     : bus(bus_) {
-    vram.fill(0x00);
-    pram.fill(0x00);
-    framebuffer.fill(0x00);
-
     StartNewScanline();
 }
 
@@ -81,18 +81,36 @@ void PPU::RenderScanline() {
     }
 
     switch (dispcnt.flags.bg_mode) {
+        case 0:
+            if (dispcnt.flags.screen_display0) {
+                RenderTiledBGScanline<0>();
+            }
+
+            if (dispcnt.flags.screen_display1) {
+                RenderTiledBGScanline<1>();
+            }
+
+            if (dispcnt.flags.screen_display2) {
+                RenderTiledBGScanline<2>();
+            }
+
+            if (dispcnt.flags.screen_display3) {
+                RenderTiledBGScanline<3>();
+            }
+
+            break;
         case 3:
-            for (std::size_t i = 0; i < 240; i++) {
-                u16 color = ReadVRAM<u16>((vcount * 240 * sizeof(u16)) + i * sizeof(u16));
-                framebuffer.at(vcount * 240 + i) = color;
+            for (std::size_t i = 0; i < GBA_SCREEN_WIDTH; i++) {
+                u16 color = ReadVRAM<u16>((vcount * GBA_SCREEN_WIDTH * sizeof(u16)) + i * sizeof(u16));
+                framebuffer.at(vcount * GBA_SCREEN_WIDTH + i) = color;
             }
 
             break;
         case 4:
-            for (std::size_t i = 0; i < 240; i++) {
-                u8 palette_index = vram.at((vcount * 240) + i) * sizeof(u16);
+            for (std::size_t i = 0; i < GBA_SCREEN_WIDTH; i++) {
+                u8 palette_index = vram.at((vcount * GBA_SCREEN_WIDTH) + i) * sizeof(u16);
                 u16 color = ReadPRAM<u16>(palette_index);
-                framebuffer.at((vcount * 240) + i) = color;
+                framebuffer.at((vcount * GBA_SCREEN_WIDTH) + i) = color;
             }
 
             break;
@@ -100,4 +118,44 @@ void PPU::RenderScanline() {
             LERROR("PPU: unimplemented BG mode {}", dispcnt.flags.bg_mode);
             break;
     }
+}
+
+template <u8 bg_no>
+void PPU::RenderTiledBGScanline() {
+    static_assert(bg_no < 4);
+
+    const u32 tile_map_base = bgcnts[bg_no].flags.screen_base_block * 0x800;
+
+    for (std::size_t i = 0; i < GBA_SCREEN_WIDTH / TILE_WIDTH; i++) {
+        const u16 tile_index = ReadVRAM<u16>(tile_map_base + ((vcount / TILE_HEIGHT) * 64) + (i * sizeof(u16))) & 0x7FF;
+        const Tile& tile = ConstructTile<bg_no>(tile_index);
+
+        for (std::size_t tile_x = 0; tile_x < TILE_WIDTH; tile_x++) {
+            const std::size_t framebuffer_pixel_position = (vcount * GBA_SCREEN_WIDTH) + (i * TILE_WIDTH) + tile_x;
+            const std::size_t tile_y = vcount % 8;
+            framebuffer.at(framebuffer_pixel_position) = ReadPRAM<u16>(tile[tile_y][tile_x] * sizeof(u16));
+        }
+    }
+}
+
+template <u8 bg_no>
+PPU::Tile PPU::ConstructTile(const u16 tile_index) {
+    static_assert(bg_no < 4);
+
+    const u32 tile_data_base = bgcnts[bg_no].flags.character_base_block * 0x4000;
+    const u32 tile_base = tile_data_base + (tile_index * TILE_SIZE_IN_BYTES);
+
+    Tile tile;
+
+    std::array<u8, TILE_SIZE_IN_BYTES> tile_data;
+    std::copy(vram.data() + tile_base, vram.data() + tile_base + TILE_SIZE_IN_BYTES, tile_data.data());
+
+    for (std::size_t y = 0; y < 8; y++) {
+        for (std::size_t x = 0; x < 8; x += 2) {
+            tile[y][x + 0] = tile_data.at((y * 4) + (x / 2)) & 0xF;
+            tile[y][x + 1] = tile_data.at((y * 4) + (x / 2)) >> 4;
+        }
+    }
+
+    return tile;
 }

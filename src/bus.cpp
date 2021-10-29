@@ -118,8 +118,6 @@ u16 Bus::Read16(u32 addr) {
                     return 0xFFFF;
             }
 
-            return 0xFFFF;
-
         case 0x6: {
             u32 address = masked_addr & 0x1FFFF;
             if (address > 0x17FFF) {
@@ -167,6 +165,15 @@ void Bus::Write16(u32 addr, u16 value) {
             switch (masked_addr) {
                 case 0x4000000:
                     ppu.SetDISPCNT(value);
+                    return;
+                case 0x4000004:
+                    ppu.SetDISPSTAT(value);
+                    return;
+                case 0x4000008:
+                    ppu.SetBGCNT<0>(value);
+                    return;
+                case 0x400000A:
+                    ppu.SetBGCNT<1>(value);
                     return;
                 default:
                     LERROR("unrecognized write16 0x{:04X} to IO register 0x{:08X}", value, masked_addr);

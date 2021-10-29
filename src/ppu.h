@@ -4,6 +4,9 @@
 #include <functional>
 #include "types.h"
 
+constexpr u32 GBA_SCREEN_WIDTH = 240;
+constexpr u32 GBA_SCREEN_HEIGHT = 160;
+
 class Bus;
 
 class PPU {
@@ -13,11 +16,27 @@ public:
     void AdvanceCycles(u8 cycles);
     void Tick();
 
+    u16 GetDISPCNT() const { return dispcnt.raw; }
     void SetDISPCNT(u16 value) { dispcnt.raw = value; }
 
     [[nodiscard]] u16 GetDISPSTAT() const { return dispstat.raw; }
+    void SetDISPSTAT(const u16 value) {
+        dispstat.raw = (value & ~0x7) | (dispstat.raw & 0x7);
+    }
 
     [[nodiscard]] u16 GetVCOUNT() const { return vcount; }
+
+    template <u8 bg_no>
+    [[nodiscard]] u16 GetBGCNT() const {
+        static_assert(bg_no < 4);
+        return bgcnts[bg_no].raw;
+    }
+
+    template <u8 bg_no>
+    void SetBGCNT(const u16 value) {
+        static_assert(bg_no < 4);
+        bgcnts[bg_no].raw = value;
+    }
 
     template <UnsignedIntegerMax32 T>
     [[nodiscard]] T ReadVRAM(u32 addr) const {
@@ -123,6 +142,9 @@ private:
     void StartVBlankLine();
     void RenderScanline();
 
+    template <u8 bg_no>
+    void RenderTiledBGScanline();
+
     union {
         u16 raw = 0x0000;
         struct {
@@ -157,6 +179,27 @@ private:
         } flags;
     } dispstat;
 
+    union BGCNT {
+        u16 raw;
+        struct {
+            u8 bg_priority : 2;
+            u8 character_base_block : 2;
+            u8 : 2;
+            bool mosaic : 1;
+            bool use_256_colors : 1;
+            u8 screen_base_block : 5;
+            bool display_area_overflow : 1;
+            u8 screen_size : 2;
+        } flags;
+    };
+
+    std::array<BGCNT, 4> bgcnts {};
+
     // Scanline counter, much like LY from the gameboy
     u8 vcount = 0;
+
+    using Tile = std::array<std::array<u8, 8>, 8>;
+
+    template <u8 bg_no>
+    Tile ConstructTile(u16 tile_index);
 };

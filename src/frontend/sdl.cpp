@@ -5,9 +5,6 @@
 #include "../keypad.h"
 #include "../logging.h"
 
-constexpr int GBA_SCREEN_WIDTH = 240;
-constexpr int GBA_SCREEN_HEIGHT = 160;
-
 namespace {
 
 SDL_Window* window;
