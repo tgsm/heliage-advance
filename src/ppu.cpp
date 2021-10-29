@@ -22,7 +22,7 @@ void PPU::AdvanceCycles(u8 cycles) {
 void PPU::Tick() {
     ASSERT(!scheduler_entries.empty());
 
-    const auto next_entry = scheduler_entries.front();
+    const auto& next_entry = scheduler_entries.front();
 
     // Check if it's time to run our scheduled function
     if (next_entry.first == vcycles) {
