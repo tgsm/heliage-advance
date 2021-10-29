@@ -60,6 +60,14 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
 void ARM7::Thumb_SoftwareInterrupt([[maybe_unused]] const u16 opcode) {
     LDEBUG("Thumb-mode SWI at {:08X}", GetPC() - 4);
 
+    if ((opcode & 0xFF) == 0x05) {
+        while (!ppu.GetDISPCNT() & 0b1) {
+            ppu.AdvanceCycles(1);
+        }
+
+        return;
+    }
+
     const u32 lr = GetPC() - 2;
     const u32 old_cpsr = cpsr.raw;
 
