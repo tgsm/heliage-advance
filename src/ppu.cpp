@@ -91,7 +91,7 @@ void PPU::RenderScanline() {
         case 4:
             for (std::size_t i = 0; i < 240; i++) {
                 u8 palette_index = vram.at((vcount * 240) + i) * sizeof(u16);
-                u16 color = ReadPRAM(palette_index);
+                u16 color = ReadPRAM<u16>(palette_index);
                 framebuffer.at((vcount * 240) + i) = color;
             }
 
@@ -100,8 +100,4 @@ void PPU::RenderScanline() {
             LERROR("PPU: unimplemented BG mode {}", dispcnt.flags.bg_mode);
             break;
     }
-}
-
-u16 PPU::ReadPRAM(u32 addr) const {
-    return (pram.at(addr + 1) << 8) | pram.at(addr);
 }

@@ -43,13 +43,13 @@ public:
     template <UnsignedIntegerMax32 T>
     void WriteVRAM(u32 addr, T value) {
         if constexpr (std::is_same_v<T, u8>) {
-            vram[addr] = value;
+            vram.at(addr) = value;
         }
 
         if constexpr (std::is_same_v<T, u16>) {
             addr &= ~0b1;
-            vram[addr] = value & 0xFF;
-            vram[addr + 1] = value >> 8;
+            vram.at(addr) = value & 0xFF;
+            vram.at(addr + 1) = value >> 8;
         }
 
         if constexpr (std::is_same_v<T, u32>) {
@@ -61,9 +61,47 @@ public:
         }
     }
 
-    void WritePRAM8(u32 addr, u8 value) { pram[addr] = value; }
+    template <UnsignedIntegerMax32 T>
+    [[nodiscard]] T ReadPRAM(u32 addr) const {
+        if constexpr (std::is_same_v<T, u8>) {
+            return pram.at(addr);
+        }
 
-    [[nodiscard]] u16 ReadPRAM(u32 addr) const;
+        if constexpr (std::is_same_v<T, u16>) {
+            addr &= ~0b1;
+            return (pram.at(addr) |
+                   (pram.at(addr + 1) << 8));
+        }
+
+        if constexpr (std::is_same_v<T, u32>) {
+            addr &= ~0b11;
+            return (pram.at(addr) |
+                   (pram.at(addr + 1) << 8) |
+                   (pram.at(addr + 2) << 16) |
+                   (pram.at(addr + 3) << 24));
+        }
+    }
+
+    template <UnsignedIntegerMax32 T>
+    void WritePRAM(u32 addr, T value) {
+        if constexpr (std::is_same_v<T, u8>) {
+            pram.at(addr) = value;
+        }
+
+        if constexpr (std::is_same_v<T, u16>) {
+            addr &= ~0b1;
+            pram.at(addr) = value & 0xFF;
+            pram.at(addr + 1) = value >> 8;
+        }
+
+        if constexpr (std::is_same_v<T, u32>) {
+            addr &= ~0b11;
+            pram.at(addr) = value & 0xFF;
+            pram.at(addr + 1) = value >> 8;
+            pram.at(addr + 2) = value >> 16;
+            pram.at(addr + 3) = value >> 24;
+        }
+    }
 
 private:
     std::array<u8, 0x18000> vram;

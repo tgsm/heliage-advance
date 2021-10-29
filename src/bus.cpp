@@ -177,7 +177,7 @@ void Bus::Write16(u32 addr, u16 value) {
             LDEBUG("write16 0x{:04X} to 0x{:08X} (PRAM)", value, masked_addr);
             for (size_t i = 0; i < 2; i++) {
                 // Mask off the last bit to keep halfword alignment.
-                ppu.WritePRAM8(((masked_addr & ~0b1) & 0x3FF) + i, (value >> (8 * i)) & 0xFF);
+                ppu.WritePRAM<u8>(((masked_addr & ~0b1) & 0x3FF) + i, (value >> (8 * i)) & 0xFF);
             }
             return;
 
