@@ -290,6 +290,11 @@ void Bus::Write32(u32 addr, u32 value) {
                     return;
             }
 
+        case 0x5:
+            LDEBUG("write32 0x{:08X} to 0x{:08X} (PRAM)", value, masked_addr);
+            ppu.WritePRAM<u32>(masked_addr & 0x3FF, value);
+            return;
+
         case 0x6: {
             u32 address = masked_addr & 0x1FFFF;
             if (address > 0x17FFF) {
