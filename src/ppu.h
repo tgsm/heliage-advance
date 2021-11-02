@@ -123,9 +123,9 @@ public:
     }
 
 private:
-    std::array<u8, 0x18000> vram;
-    std::array<u8, 0x400> pram; // Palette RAM
-    std::array<u16, 240 * 160> framebuffer;
+    std::array<u8, 0x18000> vram {};
+    std::array<u8, 0x400> pram {}; // Palette RAM
+    std::array<u16, GBA_SCREEN_WIDTH * GBA_SCREEN_HEIGHT> framebuffer {};
 
     Bus& bus;
 
