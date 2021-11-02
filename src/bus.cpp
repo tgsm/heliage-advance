@@ -71,6 +71,17 @@ void Bus::Write8(u32 addr, u8 value) {
             wram_onchip[masked_addr & 0x7FFF] = value;
             return;
 
+        case 0x6: {
+            u32 address = masked_addr & 0x1FFFF;
+            if (address > 0x17FFF) {
+                address -= 0x8000;
+            }
+
+            LDEBUG("write8 0x{:02X} to 0x{:08X} (VRAM)", value, masked_addr);
+            ppu.WriteVRAM<u8>(address, value);
+            return;
+        }
+
         default:
             LERROR("unrecognized write8 0x{:02X} to 0x{:08X}", value, masked_addr);
             return;
@@ -107,6 +118,8 @@ u16 Bus::Read16(u32 addr) {
 
         case 0x4:
             switch (masked_addr) {
+                case 0x4000000:
+                    return ppu.GetDISPCNT();
                 case 0x4000004:
                     return ppu.GetDISPSTAT();
                 case 0x4000006:
@@ -174,6 +187,15 @@ void Bus::Write16(u32 addr, u16 value) {
                     return;
                 case 0x400000A:
                     ppu.SetBGCNT<1>(value);
+                    return;
+                case 0x400000C:
+                    ppu.SetBGCNT<2>(value);
+                    return;
+                case 0x40000DC:
+                    dma_channels[3].word_count = value;
+                    return;
+                case 0x40000DE:
+                    SetDMAControl<3>(value);
                     return;
                 default:
                     LERROR("unrecognized write16 0x{:04X} to IO register 0x{:08X}", value, masked_addr);
