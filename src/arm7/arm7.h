@@ -137,8 +137,10 @@ private:
                 return cpsr.raw;
             case ProcessorMode::Supervisor:
                 return spsr_svc.raw;
+            case ProcessorMode::FIQ:
+                return spsr_fiq.raw;
             default:
-                UNIMPLEMENTED_MSG("unimplemented get spsr from mode {:X}", cpsr.flags.processor_mode);
+                UNIMPLEMENTED_MSG("unimplemented get spsr from mode {:05b}", cpsr.flags.processor_mode);
         }
     }
 
@@ -150,8 +152,11 @@ private:
             case ProcessorMode::Supervisor:
                 spsr_svc.raw = cpsr_raw;
                 break;
+            case ProcessorMode::FIQ:
+                spsr_fiq.raw = cpsr_raw;
+                break;
             default:
-                UNIMPLEMENTED_MSG("unimplemented set spsr for mode {:X}", cpsr.flags.processor_mode);
+                UNIMPLEMENTED_MSG("unimplemented set spsr for mode {:05b}", cpsr.flags.processor_mode);
         }
     }
 
@@ -300,8 +305,8 @@ private:
 
     void ARM_MRS(const u32 opcode);
     void ARM_DisassembleMRS(const u32 opcode);
-    void ARM_MSR_AllBits(const u32 opcode);
-    void ARM_MSR_FlagBits(const u32 opcode);
+    template <bool flag_bits_only>
+    void ARM_MSR(const u32 opcode);
     template <bool flag_bits_only>
     void ARM_DisassembleMSR(const u32 opcode);
 

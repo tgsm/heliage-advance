@@ -149,7 +149,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
         return;
     }
 
-    if ((opcode & 0x0FBFFFF0) == 0x0129F000) {
+    if ((opcode & 0x0DBFF000) == 0x0129F000) {
         ARM_DisassembleMSR<false>(opcode);
         return;
     }
@@ -344,29 +344,29 @@ void ARM7::ARM_DisassembleMSR(const u32 opcode) {
 
     disasm += fmt::format("MSR{} ", GetConditionCode(cond));
 
-    if constexpr (flag_bits_only) {
-        const bool operand_is_immediate = (opcode >> 25) & 0b1;
-        const u16 source_operand = opcode & 0xFFF;
+    const bool operand_is_immediate = (opcode >> 25) & 0b1;
+    const u16 source_operand = opcode & 0xFFF;
 
-        if (destination_is_spsr) {
-            disasm += "SPSR_flg, ";
-        } else {
-            disasm += "CPSR_flg, ";
-        }
-
-        if (operand_is_immediate) {
-            const u8 rotate_amount = (source_operand >> 8) & 0xF;
-            const u8 immediate = source_operand & 0xFF;
-
-            disasm += fmt::format("#0x{:08X}", Shift_RotateRight(immediate, rotate_amount * 2));
-        } else {
-            const u8 rm = source_operand & 0xF;
-            disasm += GetRegAsStr(rm);
-        }
+    if (destination_is_spsr) {
+        disasm += "SPSR_";
     } else {
-        const u8 rm = opcode & 0xF;
+        disasm += "CPSR_";
+    }
 
-        disasm += fmt::format("{}_all, {}", destination_is_spsr ? "SPSR" : "CPSR", GetRegAsStr(rm));
+    if constexpr (flag_bits_only) {
+        disasm += "flg, ";
+    } else {
+        disasm += "all, ";
+    }
+
+    if (operand_is_immediate) {
+        const u8 rotate_amount = (source_operand >> 8) & 0xF;
+        const u8 immediate = source_operand & 0xFF;
+
+        disasm += fmt::format("#0x{:08X}", Shift_RotateRight(immediate, rotate_amount << 1));
+    } else {
+        const u8 rm = source_operand & 0xF;
+        disasm += GetRegAsStr(rm);
     }
 
     LTRACE_ARM("{}", disasm);
