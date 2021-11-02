@@ -314,6 +314,16 @@ u32 ARM7::Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount)
     return result;
 }
 
+u32 ARM7::Shift_RRX(const u32 operand_to_rotate) {
+    const bool bit0 = operand_to_rotate & 0b1;
+
+    u32 result = (operand_to_rotate >> 1) | (cpsr.flags.carry << 31);
+
+    cpsr.flags.carry = bit0;
+
+    return result;
+}
+
 u32 ARM7::ADC(const u32 operand1, const u32 operand2, const bool change_flags) {
     u32 result = operand1 + operand2 + cpsr.flags.carry;
     if (change_flags) {

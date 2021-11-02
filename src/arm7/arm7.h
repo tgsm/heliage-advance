@@ -233,6 +233,7 @@ private:
         LSR,
         ASR,
         ROR,
+        RRX,
     };
 
     [[nodiscard]] u32 Shift(const u64 operand_to_shift, const ShiftType shift_type, const u8 shift_amount);
@@ -240,6 +241,7 @@ private:
     [[nodiscard]] u32 Shift_LSR(const u64 operand_to_shift, const u8 shift_amount);
     [[nodiscard]] u32 Shift_ASR(const u64 operand_to_shift, const u8 shift_amount);
     [[nodiscard]] u32 Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount);
+    [[nodiscard]] u32 Shift_RRX(const u32 operand_to_rotate);
 
     [[nodiscard]] u32 ADC(const u32 operand1, const u32 operand2, const bool change_flags);
     [[nodiscard]] u32 ADD(const u32 operand1, const u32 operand2, const bool change_flags);

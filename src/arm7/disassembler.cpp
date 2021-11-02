@@ -197,19 +197,25 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                     u16 shift_amount = (shift >> 3) & 0x1F;
                     u8 shift_type = (shift >> 1) & 0b11;
 
-                    if (!shift_amount && !shift_type) {
+                    if (shift_amount == 0 && shift_type == static_cast<u8>(ShiftType::LSL)) {
                         disasm += GetRegAsStr(rm);
                     } else {
-                        if (!shift_amount) {
-                            shift_amount = 32;
+                        if (shift_amount == 0) {
+                            if (shift_type == static_cast<u8>(ShiftType::ROR)) {
+                                shift_type = static_cast<u8>(ShiftType::RRX);
+                            } else {
+                                shift_amount = 32;
+                            }
                         }
 
                         disasm += fmt::format("{}, ", GetRegAsStr(rm));
 
-                        constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
+                        constexpr std::array<const char*, 5> shift_types = { "LSL", "LSR", "ASR", "ROR", "RRX" };
                         disasm += std::string(shift_types[shift_type]);
 
-                        disasm += fmt::format(" #{}", shift_amount);
+                        if (shift_type != static_cast<u8>(ShiftType::RRX)) {
+                            disasm += fmt::format(" #{}", shift_amount);
+                        }
                     }
                 } else if ((shift & 0b1001) == 0b0001) {
                     u8 rs = (shift >> 4) & 0xF;
