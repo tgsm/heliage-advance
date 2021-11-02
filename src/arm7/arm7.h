@@ -324,7 +324,8 @@ private:
 
     void ARM_HalfwordDataTransferRegister(const u32 opcode);
     void ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode);
-    void ARM_StoreHalfwordRegister(const u32 opcode, const bool sign);
+    template <bool load_from_memory, bool transfer_halfword>
+    void ARM_HalfwordDataTransferRegister_Impl(const u32 opcode, const bool sign);
 
     void ARM_HalfwordDataTransferImmediate(const u32 opcode);
     void ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode);

@@ -86,14 +86,21 @@ void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
             ARM_SingleDataSwap(opcode);
             break;
         case 0b01:
-            ARM_StoreHalfwordRegister(opcode, sign);
+            ARM_HalfwordDataTransferRegister_Impl<false, true>(opcode, sign);
+            break;
+        case 0b10:
+            ARM_HalfwordDataTransferRegister_Impl<true, false>(opcode, sign);
+            break;
+        case 0b11:
+            ARM_HalfwordDataTransferRegister_Impl<true, true>(opcode, sign);
             break;
         default:
-            UNIMPLEMENTED_MSG("unimplemented halfword data transfer register conditions 0x{:X}", conditions);
+            UNREACHABLE();
     }
 }
 
-void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
+template <bool load_from_memory, bool transfer_halfword>
+void ARM7::ARM_HalfwordDataTransferRegister_Impl(const u32 opcode, const bool sign) {
     const bool pre_indexing = (opcode >> 24) & 0b1;
     const bool add_offset_to_base = (opcode >> 23) & 0b1;
     const bool write_back = (opcode >> 21) & 0b1;
@@ -109,13 +116,54 @@ void ARM7::ARM_StoreHalfwordRegister(const u32 opcode, const bool sign) {
             address -= GetRegister(rm);
         }
 
-        bus.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
+        if constexpr (load_from_memory) {
+            if constexpr (transfer_halfword) {
+                if (sign) {
+                    SetRegister(rd, (static_cast<s16>(bus.Read16(address)) << 16) >> 16);
+                } else {
+                    SetRegister(rd, bus.Read16(address));
+                }
+            } else {
+                if (sign) {
+                    SetRegister(rd, (static_cast<s8>(bus.Read8(address)) << 24) >> 24);
+                } else {
+                    SetRegister(rd, bus.Read8(address));
+                }
+            }
+        } else {
+            if constexpr (transfer_halfword) {
+                bus.Write16(address, GetRegister(rd));
+            } else {
+                bus.Write8(address, GetRegister(rd));
+            }
+        }
 
         if (write_back) {
             SetRegister(rn, address);
         }
     } else {
-        bus.Write16(address, sign ? static_cast<s16>(GetRegister(rd)) : GetRegister(rd));
+        if constexpr (load_from_memory) {
+            if constexpr (transfer_halfword) {
+                if (sign) {
+                    SetRegister(rd, static_cast<s16>(bus.Read16(address) << 16) >> 16);
+                } else {
+                    SetRegister(rd, bus.Read16(address));
+                }
+            } else {
+                if (sign) {
+                    SetRegister(rd, static_cast<s8>(bus.Read8(address) << 24) >> 24);
+                } else {
+                    SetRegister(rd, bus.Read8(address));
+                }
+            }
+        } else {
+            if constexpr (transfer_halfword) {
+                bus.Write16(address, GetRegister(rd));
+            } else {
+                bus.Write8(address, GetRegister(rd));
+            }
+        }
+
         if (add_offset_to_base) {
             address += GetRegister(rm);
         } else {
