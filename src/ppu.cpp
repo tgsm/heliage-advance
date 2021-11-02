@@ -108,7 +108,7 @@ void PPU::RenderScanline() {
             break;
         case 4:
             for (std::size_t i = 0; i < GBA_SCREEN_WIDTH; i++) {
-                u8 palette_index = vram.at((vcount * GBA_SCREEN_WIDTH) + i) * sizeof(u16);
+                u16 palette_index = vram.at((vcount * GBA_SCREEN_WIDTH) + i) * sizeof(u16);
                 u16 color = ReadPRAM<u16>(palette_index);
                 framebuffer.at((vcount * GBA_SCREEN_WIDTH) + i) = color;
             }
