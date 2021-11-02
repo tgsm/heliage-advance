@@ -1,6 +1,6 @@
 #include <bit>
 #include "arm7.h"
-#include "logging.h"
+#include "common/logging.h"
 
 ARM7::ARM7(Bus& bus_, PPU& ppu_)
     : bus(bus_), ppu(ppu_) {

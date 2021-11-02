@@ -1,6 +1,6 @@
 #include <fstream>
 #include "bios.h"
-#include "logging.h"
+#include "common/logging.h"
 
 BIOS::BIOS(const std::filesystem::path& bios_filename) {
     ASSERT_MSG(std::filesystem::is_regular_file(bios_filename), "Provided BIOS is not a regular file");

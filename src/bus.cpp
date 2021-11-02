@@ -1,5 +1,5 @@
 #include "bus.h"
-#include "logging.h"
+#include "common/logging.h"
 
 Bus::Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_)
     : bios(bios_), cartridge(cartridge_), keypad(keypad_), ppu(ppu_) {

@@ -1,6 +1,6 @@
 #include "bus.h"
 #include "frontend/frontend.h"
-#include "logging.h"
+#include "common/logging.h"
 #include "ppu.h"
 
 constexpr u32 TILE_WIDTH = 8;

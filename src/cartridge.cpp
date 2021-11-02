@@ -1,6 +1,6 @@
 #include <fstream>
 #include "cartridge.h"
-#include "logging.h"
+#include "common/logging.h"
 
 constexpr int TITLE_OFFSET = 0xA0;
 constexpr int TITLE_LENGTH = 12;

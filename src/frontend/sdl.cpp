@@ -1,9 +1,9 @@
 #include <SDL2/SDL.h>
 #include <filesystem>
-#include "../cartridge.h"
-#include "../gba.h"
-#include "../keypad.h"
-#include "../logging.h"
+#include "cartridge.h"
+#include "gba.h"
+#include "keypad.h"
+#include "common/logging.h"
 
 namespace {
 

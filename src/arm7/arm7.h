@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bus.h"
-#include "logging.h"
+#include "common/logging.h"
 #include "types.h"
 
 class ARM7 {

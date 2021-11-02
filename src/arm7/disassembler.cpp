@@ -1,10 +1,9 @@
-#include <fmt/core.h>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/reverse.hpp>
 #include "arm7.h"
-#include "logging.h"
+#include "common/logging.h"
 
 void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opcode) {
     switch (instr) {
