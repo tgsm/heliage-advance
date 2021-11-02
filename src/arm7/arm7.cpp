@@ -26,7 +26,7 @@ void ARM7::Step(bool dump_registers) {
         const Thumb_Instructions instr = DecodeThumbInstruction(opcode);
         if (dump_registers)
             DumpRegisters();
-        DisassembleThumbInstruction(instr, opcode);
+        // DisassembleThumbInstruction(instr, opcode);
         ExecuteThumbInstruction(instr, opcode);
     } else {
         const u32 opcode = pipeline[0];
@@ -38,7 +38,7 @@ void ARM7::Step(bool dump_registers) {
         const ARM_Instructions instr = DecodeARMInstruction(opcode);
         if (dump_registers)
             DumpRegisters();
-        DisassembleARMInstruction(instr, opcode);
+        // DisassembleARMInstruction(instr, opcode);
         ExecuteARMInstruction(instr, opcode);
     }
 
@@ -366,18 +366,6 @@ void ARM7::CMP(const u32 operand1, const u32 operand2) {
     cpsr.flags.overflow = ((operand1 ^ result) & (~operand2 ^ result)) >> 31;
 }
 
-u32 ARM7::RSC(const u32 operand1, const u32 operand2, const bool change_flags) {
-    u32 result = operand2 - operand1 - !cpsr.flags.carry;
-    if (change_flags) {
-        cpsr.flags.negative = (result & (1 << 31));
-        cpsr.flags.zero = (result == 0);
-        cpsr.flags.carry = (result <= operand1);
-        cpsr.flags.overflow = ((operand1 ^ result) & (~operand2 ^ result)) >> 31;
-    }
-
-    return result;
-}
-
 u32 ARM7::SBC(const u32 operand1, const u32 operand2, const bool change_flags) {
     u32 result = operand1 - operand2 - !cpsr.flags.carry;
     if (change_flags) {
@@ -404,6 +392,14 @@ u32 ARM7::SUB(const u32 operand1, const u32 operand2, const bool change_flags) {
 
 void ARM7::TEQ(const u32 operand1, const u32 operand2) {
     u32 result = operand1 ^ operand2;
+
+    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.zero = (result == 0);
+    // carry flag?
+}
+
+void ARM7::TST(const u32 operand1, const u32 operand2) {
+    u32 result = operand1 & operand2;
 
     cpsr.flags.negative = (result & (1 << 31));
     cpsr.flags.zero = (result == 0);

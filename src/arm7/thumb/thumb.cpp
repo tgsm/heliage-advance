@@ -144,12 +144,9 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
         case 0x7: // ROR
             SetRegister(rd, Shift(GetRegister(rd), ShiftType::ROR, GetRegister(rs)));
             break;
-        case 0x8: { // TST
-            u32 result = GetRegister(rd) & GetRegister(rs);
-            cpsr.flags.zero = (result == 0);
-            cpsr.flags.negative = (result & (1 << 31));
+        case 0x8: // TST
+            TST(GetRegister(rd), GetRegister(rs));
             return;
-        }
         case 0x9: // NEG
             SetRegister(rd, -GetRegister(rs));
             break;

@@ -247,10 +247,10 @@ private:
     [[nodiscard]] u32 ADD(const u32 operand1, const u32 operand2, const bool change_flags);
     void CMN(const u32 operand1, const u32 operand2);
     void CMP(const u32 operand1, const u32 operand2);
-    [[nodiscard]] u32 RSC(const u32 operand1, const u32 operand2, const bool change_flags);
     [[nodiscard]] u32 SBC(const u32 operand1, const u32 operand2, const bool change_flags);
     [[nodiscard]] u32 SUB(const u32 operand1, const u32 operand2, const bool change_flags);
     void TEQ(const u32 operand1, const u32 operand2);
+    void TST(const u32 operand1, const u32 operand2);
 
     [[nodiscard]] bool CheckConditionCode(const u8 cond);
     [[nodiscard]] std::string GetConditionCode(const u8 cond);

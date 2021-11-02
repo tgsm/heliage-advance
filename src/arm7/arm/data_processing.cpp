@@ -38,15 +38,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             case 0x2:
                 SetRegister(rd, SUB(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
-            case 0x3: {
-                u32 result = rotated_operand - GetRegister(rn);
-                cpsr.flags.carry = (result < GetRegister(rn));
-                if (set_condition_codes) {
-                    cpsr.flags.overflow = ((GetRegister(rn) ^ result) & (rotated_operand ^ result)) >> 31;
-                }
-                SetRegister(rd, result);
+            case 0x3:
+                SetRegister(rd, SUB(rotated_operand, GetRegister(rn), set_condition_codes));
                 break;
-            }
             case 0x4:
                 SetRegister(rd, ADD(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
@@ -57,16 +51,11 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 SetRegister(rd, SBC(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
             case 0x7:
-                SetRegister(rd, RSC(GetRegister(rn), rotated_operand, set_condition_codes));
+                SetRegister(rd, SBC(rotated_operand, GetRegister(rn), set_condition_codes));
                 break;
-            case 0x8: {
-                u32 result = GetRegister(rn) & rotated_operand;
-                cpsr.flags.negative = (result & (1 << 31));
-                cpsr.flags.carry = (result < GetRegister(rn));
-                cpsr.flags.zero = (result == 0);
-
+            case 0x8:
+                TST(GetRegister(rn), rotated_operand);
                 return;
-            }
             case 0x9:
                 TEQ(GetRegister(rn), rotated_operand);
                 return;
@@ -127,6 +116,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 case 0x2:
                     SetRegister(rd, SUB(GetRegister(rn), shifted_operand, set_condition_codes));
                     break;
+                case 0x3:
+                    SetRegister(rd, SUB(shifted_operand, GetRegister(rn), set_condition_codes));
+                    break;
                 case 0x4:
                     SetRegister(rd, ADD(GetRegister(rn), shifted_operand, set_condition_codes));
                     break;
@@ -137,8 +129,11 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     SetRegister(rd, SBC(GetRegister(rn), shifted_operand, set_condition_codes));
                     break;
                 case 0x7:
-                    SetRegister(rd, RSC(GetRegister(rn), shifted_operand, set_condition_codes));
+                    SetRegister(rd, SBC(shifted_operand, GetRegister(rn), set_condition_codes));
                     break;
+                case 0x8:
+                    TST(GetRegister(rn), shifted_operand);
+                    return;
                 case 0x9:
                     TEQ(GetRegister(rn), shifted_operand);
                     return;
@@ -174,6 +169,18 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             u32 shifted_operand = Shift(GetRegister(rm), shift_type, GetRegister(rs));
 
             switch (op) {
+                case 0x0:
+                    SetRegister(rd, GetRegister(rn) | shifted_operand);
+                    break;
+                case 0x4:
+                    SetRegister(rd, ADD(GetRegister(rn), shifted_operand, set_condition_codes));
+                    break;
+                case 0x5:
+                    SetRegister(rd, ADC(GetRegister(rn), shifted_operand, set_condition_codes));
+                    break;
+                case 0xC:
+                    SetRegister(rd, GetRegister(rn) | shifted_operand);
+                    break;
                 case 0xD:
                     if (set_condition_codes && rd == 15) {
                         cpsr.raw = GetSPSR();
