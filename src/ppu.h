@@ -2,7 +2,7 @@
 
 #include <deque>
 #include <functional>
-#include "types.h"
+#include "common/types.h"
 
 constexpr u32 GBA_SCREEN_WIDTH = 240;
 constexpr u32 GBA_SCREEN_HEIGHT = 160;

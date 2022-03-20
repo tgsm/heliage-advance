@@ -1,11 +1,11 @@
 #pragma once
 
 #include <array>
+#include "common/types.h"
 #include "bios.h"
 #include "cartridge.h"
 #include "keypad.h"
 #include "ppu.h"
-#include "types.h"
 
 class Bus {
 public:

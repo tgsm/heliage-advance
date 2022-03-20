@@ -50,7 +50,7 @@ set(HEADERS
     src/gba.h
     src/keypad.h
     src/ppu.h
-    src/types.h
+    src/common/types.h
 )
 
 if (${HA_FRONTEND} MATCHES "SDL2")

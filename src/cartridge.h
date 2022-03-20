@@ -2,7 +2,7 @@
 
 #include <filesystem>
 #include <vector>
-#include "types.h"
+#include "common/types.h"
 
 class Cartridge {
 public:

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <array>
-#include "../keypad.h"
-#include "../types.h"
+#include "keypad.h"
+#include "common/types.h"
 
 int main_null(char* argv[]);
 

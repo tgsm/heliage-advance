@@ -15,3 +15,13 @@ typedef std::int64_t s64;
 
 template <typename T>
 concept UnsignedIntegerMax32 = std::same_as<T, u8> || std::same_as<T, u16> || std::same_as<T, u32>;
+
+namespace Common {
+
+template <typename T>
+constexpr std::size_t TypeSizeInBits = sizeof(T) * 8;
+
+template <typename T1, typename T2>
+constexpr bool TypeIsSame = std::is_same_v<T1, T2>;
+
+}

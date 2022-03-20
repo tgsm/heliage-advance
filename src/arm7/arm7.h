@@ -2,7 +2,7 @@
 
 #include "bus.h"
 #include "common/logging.h"
-#include "types.h"
+#include "common/types.h"
 
 class ARM7 {
 public:

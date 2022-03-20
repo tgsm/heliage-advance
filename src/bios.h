@@ -3,7 +3,7 @@
 #include <array>
 #include <filesystem>
 #include <type_traits>
-#include "types.h"
+#include "common/types.h"
 
 constexpr int BIOS_SIZE = 16 * 1024; // 16 KB
 
