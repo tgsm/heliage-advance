@@ -108,8 +108,13 @@ void PPU::RenderScanline() {
             break;
         case 4:
             for (std::size_t i = 0; i < GBA_SCREEN_WIDTH; i++) {
-                u16 palette_index = vram.at((vcount * GBA_SCREEN_WIDTH) + i) * sizeof(u16);
-                u16 color = ReadPRAM<u16>(palette_index);
+                std::size_t vram_address = (vcount * GBA_SCREEN_WIDTH) + i;
+                if (dispcnt.flags.display_frame_select) {
+                    vram_address += 0xA000;
+                }
+
+                const u16 palette_index = vram.at(vram_address) * sizeof(u16);
+                const u16 color = ReadPRAM<u16>(palette_index);
                 framebuffer.at((vcount * GBA_SCREEN_WIDTH) + i) = color;
             }
 
