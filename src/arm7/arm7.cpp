@@ -1,5 +1,6 @@
 #include <bit>
 #include "arm7.h"
+#include "common/bits.h"
 #include "common/logging.h"
 
 ARM7::ARM7(Bus& bus_, PPU& ppu_)
@@ -68,7 +69,7 @@ ARM7::ARM_Instructions ARM7::DecodeARMInstruction(const u32 opcode) const {
 }
 
 void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
     if (!CheckConditionCode(cond)) {
         return;
     }
@@ -327,7 +328,7 @@ u32 ARM7::Shift_RRX(const u32 operand_to_rotate) {
 u32 ARM7::ADC(const u32 operand1, const u32 operand2, const bool change_flags) {
     u32 result = operand1 + operand2 + cpsr.flags.carry;
     if (change_flags) {
-        cpsr.flags.negative = (result & (1 << 31));
+        cpsr.flags.negative = Common::IsBitSet<31>(result);
         cpsr.flags.zero = (result == 0);
         cpsr.flags.carry = (result < operand1);
         cpsr.flags.overflow = ((operand1 ^ result) & (operand2 ^ result)) >> 31;
@@ -339,7 +340,7 @@ u32 ARM7::ADC(const u32 operand1, const u32 operand2, const bool change_flags) {
 u32 ARM7::ADD(const u32 operand1, const u32 operand2, const bool change_flags) {
     u32 result = operand1 + operand2;
     if (change_flags) {
-        cpsr.flags.negative = (result & (1 << 31));
+        cpsr.flags.negative = Common::IsBitSet<31>(result);
         cpsr.flags.zero = (result == 0);
         cpsr.flags.carry = (result < operand1);
         cpsr.flags.overflow = ((operand1 ^ result) & (operand2 ^ result)) >> 31;
@@ -351,7 +352,7 @@ u32 ARM7::ADD(const u32 operand1, const u32 operand2, const bool change_flags) {
 void ARM7::CMN(const u32 operand1, const u32 operand2) {
     u32 result = operand1 + operand2;
 
-    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.negative = Common::IsBitSet<31>(result);
     cpsr.flags.zero = (result == 0);
     cpsr.flags.carry = (result < operand1);
     cpsr.flags.overflow = ((operand1 ^ result) & (operand2 ^ result)) >> 31;
@@ -360,7 +361,7 @@ void ARM7::CMN(const u32 operand1, const u32 operand2) {
 void ARM7::CMP(const u32 operand1, const u32 operand2) {
     u32 result = operand1 - operand2;
 
-    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.negative = Common::IsBitSet<31>(result);
     cpsr.flags.zero = (result == 0);
     cpsr.flags.carry = (result <= operand1);
     cpsr.flags.overflow = ((operand1 ^ result) & (~operand2 ^ result)) >> 31;
@@ -369,7 +370,7 @@ void ARM7::CMP(const u32 operand1, const u32 operand2) {
 u32 ARM7::SBC(const u32 operand1, const u32 operand2, const bool change_flags) {
     u32 result = operand1 - operand2 - !cpsr.flags.carry;
     if (change_flags) {
-        cpsr.flags.negative = (result & (1 << 31));
+        cpsr.flags.negative = Common::IsBitSet<31>(result);
         cpsr.flags.zero = (result == 0);
         cpsr.flags.carry = (result <= operand1);
         cpsr.flags.overflow = ((operand1 ^ result) & (~operand2 ^ result)) >> 31;
@@ -381,7 +382,7 @@ u32 ARM7::SBC(const u32 operand1, const u32 operand2, const bool change_flags) {
 u32 ARM7::SUB(const u32 operand1, const u32 operand2, const bool change_flags) {
     u32 result = operand1 - operand2;
     if (change_flags) {
-        cpsr.flags.negative = (result & (1 << 31));
+        cpsr.flags.negative = Common::IsBitSet<31>(result);
         cpsr.flags.zero = (result == 0);
         cpsr.flags.carry = (result <= operand1);
         cpsr.flags.overflow = ((operand1 ^ result) & (~operand2 ^ result)) >> 31;
@@ -393,7 +394,7 @@ u32 ARM7::SUB(const u32 operand1, const u32 operand2, const bool change_flags) {
 void ARM7::TEQ(const u32 operand1, const u32 operand2) {
     u32 result = operand1 ^ operand2;
 
-    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.negative = Common::IsBitSet<31>(result);
     cpsr.flags.zero = (result == 0);
     // carry flag?
 }
@@ -401,7 +402,7 @@ void ARM7::TEQ(const u32 operand1, const u32 operand2) {
 void ARM7::TST(const u32 operand1, const u32 operand2) {
     u32 result = operand1 & operand2;
 
-    cpsr.flags.negative = (result & (1 << 31));
+    cpsr.flags.negative = Common::IsBitSet<31>(result);
     cpsr.flags.zero = (result == 0);
     // carry flag?
 }

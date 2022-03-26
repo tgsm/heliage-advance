@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <functional>
+#include "common/bits.h"
 #include "common/types.h"
 
 constexpr u32 GBA_SCREEN_WIDTH = 240;
@@ -67,16 +68,16 @@ public:
 
         if constexpr (std::is_same_v<T, u16>) {
             addr &= ~0b1;
-            vram.at(addr) = value & 0xFF;
-            vram.at(addr + 1) = value >> 8;
+            vram.at(addr + 0) = Common::GetBitRange<7, 0>(value);
+            vram.at(addr + 1) = Common::GetBitRange<15, 8>(value);
         }
 
         if constexpr (std::is_same_v<T, u32>) {
             addr &= ~0b11;
-            vram.at(addr) = value & 0xFF;
-            vram.at(addr + 1) = value >> 8;
-            vram.at(addr + 2) = value >> 16;
-            vram.at(addr + 3) = value >> 24;
+            vram.at(addr + 0) = Common::GetBitRange<7, 0>(value);
+            vram.at(addr + 1) = Common::GetBitRange<15, 8>(value);
+            vram.at(addr + 2) = Common::GetBitRange<23, 16>(value);
+            vram.at(addr + 3) = Common::GetBitRange<31, 24>(value);
         }
     }
 
@@ -109,16 +110,16 @@ public:
 
         if constexpr (std::is_same_v<T, u16>) {
             addr &= ~0b1;
-            pram.at(addr) = value & 0xFF;
-            pram.at(addr + 1) = value >> 8;
+            pram.at(addr + 0) = Common::GetBitRange<7, 0>(value);
+            pram.at(addr + 1) = Common::GetBitRange<15, 8>(value);
         }
 
         if constexpr (std::is_same_v<T, u32>) {
             addr &= ~0b11;
-            pram.at(addr) = value & 0xFF;
-            pram.at(addr + 1) = value >> 8;
-            pram.at(addr + 2) = value >> 16;
-            pram.at(addr + 3) = value >> 24;
+            pram.at(addr + 0) = Common::GetBitRange<7, 0>(value);
+            pram.at(addr + 1) = Common::GetBitRange<15, 8>(value);
+            pram.at(addr + 2) = Common::GetBitRange<23, 16>(value);
+            pram.at(addr + 3) = Common::GetBitRange<31, 24>(value);
         }
     }
 

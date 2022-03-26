@@ -2,10 +2,11 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/reverse.hpp>
+#include "common/bits.h"
 #include "arm7/arm7.h"
 
 void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
-    const u8 op = (opcode >> 11) & 0x3;
+    const std::unsigned_integral auto op = Common::GetBitRange<12, 11>(opcode);
     switch (op) {
         case 0:
             Thumb_LSL(opcode);
@@ -22,21 +23,21 @@ void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
 }
 
 void ARM7::Thumb_LSL(const u16 opcode) {
-    u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     const u32 source = GetRegister(rs);
 
     SetRegister(rd, Shift(source, ShiftType::LSL, offset));
 
-    cpsr.flags.negative = GetRegister(rd) & (1 << 31);
+    cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
 void ARM7::Thumb_LSR(const u16 opcode) {
-    u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     const u32 source = GetRegister(rs);
 
     if (!offset) {
@@ -45,14 +46,14 @@ void ARM7::Thumb_LSR(const u16 opcode) {
 
     SetRegister(rd, Shift(source, ShiftType::LSR, offset));
 
-    cpsr.flags.negative = GetRegister(rd) & (1 << 31);
+    cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
 void ARM7::Thumb_ASR(const u16 opcode) {
-    u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     const u32 source = GetRegister(rs);
 
     if (!offset) {
@@ -61,16 +62,16 @@ void ARM7::Thumb_ASR(const u16 opcode) {
 
     SetRegister(rd, Shift(source, ShiftType::ASR, offset));
 
-    cpsr.flags.negative = GetRegister(rd) & (1 << 31);
+    cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
 void ARM7::Thumb_AddSubtract(const u16 opcode) {
-    const bool operand_is_immediate = (opcode >> 10) & 0b1;
-    const bool subtracting = (opcode >> 9) & 0b1;
-    const u8 rn_or_immediate = (opcode >> 6) & 0x7;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool operand_is_immediate = Common::IsBitSet<10>(opcode);
+    const bool subtracting = Common::IsBitSet<9>(opcode);
+    const std::unsigned_integral auto rn_or_immediate = Common::GetBitRange<8, 6>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     if (subtracting) {
         if (operand_is_immediate) {
@@ -88,13 +89,15 @@ void ARM7::Thumb_AddSubtract(const u16 opcode) {
 }
 
 void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
-    const u8 op = (opcode >> 11) & 0x3;
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 offset = opcode & 0xFF;
+    const std::unsigned_integral auto op = Common::GetBitRange<12, 11>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto offset = Common::GetBitRange<7, 0>(opcode);
 
     switch (op) {
         case 0x0:
             SetRegister(rd, offset);
+            cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
+            cpsr.flags.zero = (GetRegister(rd) == 0);
             break;
         case 0x1:
             CMP(GetRegister(rd), offset);
@@ -109,15 +112,12 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
         default:
             UNREACHABLE_MSG("interpreter: illegal thumb MCASI op 0x{:X}", op);
     }
-
-    cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
-    cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
 void ARM7::Thumb_ALUOperations(const u16 opcode) {
-    const u8 op = (opcode >> 6) & 0xF;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto op = Common::GetBitRange<9, 6>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     switch (op) {
         case 0x0: // AND
@@ -172,16 +172,16 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             UNIMPLEMENTED_MSG("interpreter: unimplemented thumb alu op 0x{:X}", op);
     }
 
-    cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+    cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
 }
 
 void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
-    const u8 op = (opcode >> 8) & 0x3;
-    const bool h1 = (opcode >> 7) & 0b1;
-    const bool h2 = (opcode >> 6) & 0b1;
-    u8 rs_hs = (opcode >> 3) & 0x7;
-    u8 rd_hd = opcode & 0x7;
+    const std::unsigned_integral auto op = Common::GetBitRange<9, 8>(opcode);
+    const bool h1 = Common::IsBitSet<7>(opcode);
+    const bool h2 = Common::IsBitSet<6>(opcode);
+    std::unsigned_integral auto rs_hs = Common::GetBitRange<5, 3>(opcode);
+    std::unsigned_integral auto rd_hd = Common::GetBitRange<2, 0>(opcode);
 
     ASSERT(!(op == 0x3 && h1));
 
@@ -214,30 +214,30 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
             }
             break;
         case 0x3:
-            cpsr.flags.thumb_mode = GetRegister(rs_hs) & 0b1;
+            cpsr.flags.thumb_mode = Common::IsBitSet<0>(GetRegister(rs_hs));
             SetPC(GetRegister(rs_hs) & ~0b1);
             return;
         default:
             UNREACHABLE();
     }
 
-    cpsr.flags.negative = (GetRegister(rd_hd) & (1 << 31));
+    cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd_hd));
     cpsr.flags.zero = (GetRegister(rd_hd) == 0);
 }
 
 void ARM7::Thumb_PCRelativeLoad(const u16 opcode) {
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 imm = opcode & 0xFF;
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(opcode);
 
     SetRegister(rd, bus.Read32((GetPC() + (imm << 2)) & ~0x3));
 }
 
 void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const bool transfer_byte = (opcode >> 10) & 0b1;
-    const u8 ro = (opcode >> 6) & 0x7;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const bool transfer_byte = Common::IsBitSet<10>(opcode);
+    const std::unsigned_integral auto ro = Common::GetBitRange<8, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     if (load_from_memory) {
         if (transfer_byte) {
@@ -255,11 +255,11 @@ void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
 }
 
 void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
-    const bool h_flag = (opcode >> 11) & 0b1;
-    const bool sign_extend = (opcode >> 10) & 0b1;
-    const u8 ro = (opcode >> 6) & 0x7;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool h_flag = Common::IsBitSet<11>(opcode);
+    const bool sign_extend = Common::IsBitSet<10>(opcode);
+    const std::unsigned_integral auto ro = Common::GetBitRange<8, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     if (sign_extend) {
         if (h_flag) {
@@ -295,8 +295,8 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
 }
 
 void ARM7::Thumb_LoadStoreWithImmediateOffset(const u16 opcode) {
-    const bool transfer_byte = (opcode >> 12) & 0b1;
-    const bool load_from_memory = (opcode >> 11) & 0b1;
+    const bool transfer_byte = Common::IsBitSet<12>(opcode);
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
 
     if (transfer_byte) {
         if (load_from_memory) {
@@ -314,54 +314,72 @@ void ARM7::Thumb_LoadStoreWithImmediateOffset(const u16 opcode) {
 }
 
 void ARM7::Thumb_StoreByteWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     bus.Write8(GetRegister(rb) + offset, GetRegister(rd));
 }
 
 void ARM7::Thumb_LoadByteWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     SetRegister(rd, bus.Read8(GetRegister(rb) + offset));
 }
 
 void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
-    bus.Write32(GetRegister(rb) + (offset << 2), GetRegister(rd));
+    const u32 address = GetRegister(rb) + (offset << 2);
+    const bool address_is_word_aligned = ((address & 0b11) == 0);
+
+    if (address_is_word_aligned) {
+        bus.Write32(address, GetRegister(rd));
+    } else {
+        const u32 value = std::rotr(GetRegister(rd), (address & 0b11) * 8);
+        bus.Write32(address & ~0b11, value);
+    }
 }
 
 void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
-    SetRegister(rd, bus.Read32(GetRegister(rb) + (offset << 2)));
+    const u32 address = GetRegister(rb) + (offset << 2);
+    const bool address_is_word_aligned = ((address & 0b11) == 0);
+
+    if (address_is_word_aligned) {
+        SetRegister(rd, bus.Read32(address));
+    } else {
+        const u32 value = std::rotr(bus.Read32(address & ~0b11), (address & 0b11) * 8);
+        SetRegister(rd, value);
+    }
 }
 
 void ARM7::Thumb_LoadStoreHalfword(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 imm = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
+
+    const u32 address = GetRegister(rb) + (imm << 1);
 
     if (load_from_memory) {
-        SetRegister(rd, bus.Read16(GetRegister(rb) + (imm << 1)));
+        SetRegister(rd, bus.Read16(address));
     } else {
-        bus.Write16(GetRegister(rb) + (imm << 1), static_cast<u16>(GetRegister(rd)));
+        bus.Write16(address, static_cast<u16>(GetRegister(rd)));
     }
 }
 
 void ARM7::Thumb_SPRelativeLoadStore(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 imm = opcode & 0xFF;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(opcode);
 
     if (load_from_memory) {
         SetRegister(rd, bus.Read32(GetSP() + (imm << 2)));
@@ -371,16 +389,24 @@ void ARM7::Thumb_SPRelativeLoadStore(const u16 opcode) {
 }
 
 void ARM7::Thumb_LoadAddress(const u16 opcode) {
-    const bool load_from_sp = (opcode >> 11) & 0b1;
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 imm = opcode & 0xFF;
+    const bool load_from_sp = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(opcode);
 
-    SetRegister(rd, (imm << 2) + (load_from_sp ? GetSP() : GetPC() & ~0b11));
+    u32 address = 0;
+    if (load_from_sp) {
+        address = GetSP();
+    } else {
+        address = GetPC() & ~0b11;
+    }
+    const u32 offset = imm << 2;
+
+    SetRegister(rd, address + offset);
 }
 
 void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
-    const bool offset_is_negative = (opcode >> 7) & 0b1;
-    const u8 imm = opcode & 0x7F;
+    const bool offset_is_negative = Common::IsBitSet<7>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<6, 0>(opcode);
 
     if (offset_is_negative) {
         SetSP(GetSP() - (imm << 2));
@@ -390,9 +416,9 @@ void ARM7::Thumb_AddOffsetToStackPointer(const u16 opcode) {
 }
 
 void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const bool store_lr_load_pc = (opcode >> 8) & 0b1;
-    const u8 rlist = opcode & 0xFF;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const bool store_lr_load_pc = Common::IsBitSet<8>(opcode);
+    const std::unsigned_integral auto rlist = Common::GetBitRange<7, 0>(opcode);
 
     // Go through `rlist`'s 8 bits, and write down which bits are set. This tells
     // us which registers we need to load/store.
@@ -443,9 +469,9 @@ void ARM7::Thumb_PushPopRegisters(const u16 opcode) {
 }
 
 void ARM7::Thumb_MultipleLoadStore(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 rb = (opcode >> 8) & 0x7;
-    const u8 rlist = opcode & 0xFF;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto rlist = Common::GetBitRange<7, 0>(opcode);
 
     // Go through `rlist`'s 8 bits, and write down which bits are set. This tells
     // us which registers we need to load/store.

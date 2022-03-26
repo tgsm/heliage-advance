@@ -1,3 +1,4 @@
+#include "common/bits.h"
 #include "arm7/arm7.h"
 
 void ARM7::ARM_DataProcessing(const u32 opcode) {
@@ -16,16 +17,16 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
         return;
     }
 
-    const bool op2_is_immediate = (opcode >> 25) & 0b1;
-    const u8 op = (opcode >> 21) & 0xF;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u16 op2 = opcode & 0xFFF;
+    const bool op2_is_immediate = Common::IsBitSet<25>(opcode);
+    const std::unsigned_integral auto op = Common::GetBitRange<24, 21>(opcode);
+    const bool set_condition_codes = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto op2 = Common::GetBitRange<11, 0>(opcode);
 
     if (op2_is_immediate) {
-        u8 rotate_amount = (op2 >> 8) & 0xF;
-        u8 imm = op2 & 0xFF;
+        const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
+        const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
         u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1);
 
         switch (op) {
@@ -85,11 +86,11 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ immediate", op);
         }
     } else {
-        u8 shift = (op2 >> 4) & 0xFF;
-        u8 rm = op2 & 0xF;
-        if ((shift & 0b1) == 0) {
-            u8 shift_amount = (shift >> 3) & 0x1F;
-            ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
+        const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(op2);
+        const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(op2);
+        if (!Common::IsBitSet<0>(shift)) {
+            std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
+            auto shift_type = ShiftType(Common::GetBitRange<2, 1>(shift));
 
             if (shift_amount == 0 && shift_type != ShiftType::LSL) {
                 if (shift_type == ShiftType::ROR) {
@@ -163,8 +164,8 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register", op);
             }
         } else if ((shift & 0b1001) == 0b0001) {
-            u8 rs = (shift >> 4) & 0xF;
-            ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
+            const std::unsigned_integral auto rs = Common::GetBitRange<7, 4>(shift);
+            const auto shift_type = ShiftType(Common::GetBitRange<2, 1>(shift));
 
             u32 shifted_operand = Shift(GetRegister(rm), shift_type, GetRegister(rs));
 
@@ -197,7 +198,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     }
 
     if (set_condition_codes) {
-        cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+        cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
         cpsr.flags.zero = (GetRegister(rd) == 0);
     }
 }
@@ -211,8 +212,8 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 // in block/single data transfers, CPU exceptions and some data processing instructions."
 
 void ARM7::ARM_MRS(const u32 opcode) {
-    const bool source_is_spsr = (opcode >> 22) & 0b1;
-    const u8 rd = (opcode >> 12) & 0xF;
+    const bool source_is_spsr = Common::IsBitSet<22>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
 
     if (source_is_spsr) {
         SetRegister(rd, GetSPSR());
@@ -223,13 +224,13 @@ void ARM7::ARM_MRS(const u32 opcode) {
 
 template <bool flag_bits_only>
 void ARM7::ARM_MSR(const u32 opcode) {
-    const bool destination_is_spsr = (opcode >> 22) & 0b1;
-    const bool operand_is_immediate = (opcode >> 25) & 0b1;
-    const u16 source_operand = opcode & 0xFFF;
+    const bool destination_is_spsr = Common::IsBitSet<22>(opcode);
+    const bool operand_is_immediate = Common::IsBitSet<25>(opcode);
+    const std::unsigned_integral auto source_operand = Common::GetBitRange<11, 0>(opcode);
 
     if (operand_is_immediate) {
-        const u8 rotate_amount = (source_operand >> 8) & 0xF;
-        const u8 immediate = source_operand & 0xFF;
+        const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(source_operand);
+        const std::unsigned_integral auto immediate = Common::GetBitRange<7, 0>(source_operand);
 
         if constexpr (flag_bits_only) {
             if (destination_is_spsr) {
@@ -247,7 +248,7 @@ void ARM7::ARM_MSR(const u32 opcode) {
             }
         }
     } else {
-        const u8 rm = source_operand & 0xF;
+        const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(source_operand);
         if constexpr (flag_bits_only) {
             if (destination_is_spsr) {
                 SetSPSR(GetSPSR() & ~0xFFFFFF00);

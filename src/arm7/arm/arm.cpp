@@ -2,15 +2,16 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/reverse.hpp>
+#include "common/bits.h"
 #include "arm7/arm7.h"
 
 void ARM7::ARM_Multiply(const u32 opcode) {
-    const bool accumulate = (opcode >> 21) & 0b1;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rd = (opcode >> 16) & 0xF;
-    const u8 rn = (opcode >> 12) & 0xF;
-    const u8 rs = (opcode >> 8) & 0xF;
-    const u8 rm = opcode & 0xF;
+    const bool accumulate = Common::IsBitSet<21>(opcode);
+    const bool set_condition_codes = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<11, 8>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
     SetRegister(rd, GetRegister(rm) * GetRegister(rs));
 
@@ -19,30 +20,30 @@ void ARM7::ARM_Multiply(const u32 opcode) {
     }
 
     if (set_condition_codes) {
-        cpsr.flags.negative = (GetRegister(rd) & (1 << 31));
+        cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
         cpsr.flags.zero = (GetRegister(rd) == 0);
     }
 }
 
 void ARM7::ARM_MultiplyLong(const u32 opcode) {
-    const bool sign = (opcode >> 22) & 0b1;
-    const bool accumulate = (opcode >> 21) & 0b1;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rdhi = (opcode >> 16) & 0xF;
-    const u8 rdlo = (opcode >> 12) & 0xF;
-    const u8 rs = (opcode >> 8) & 0xF;
-    const u8 rm = opcode & 0xF;
+    const bool sign = Common::IsBitSet<22>(opcode);
+    const bool accumulate = Common::IsBitSet<21>(opcode);
+    const bool set_condition_codes = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rdhi = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rdlo = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<11, 8>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
     if (sign) {
         s64 result = static_cast<s64>(GetRegister(rm)) * static_cast<s64>(GetRegister(rs));
         if (accumulate) {
             result += ((static_cast<s64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
         }
-        SetRegister(rdlo, result & 0xFFFFFFFF);
-        SetRegister(rdhi, result >> 32);
+        SetRegister(rdlo, Common::GetBitRange<31, 0>(result));
+        SetRegister(rdhi, Common::GetBitRange<63, 32>(result));
 
         if (set_condition_codes) {
-            cpsr.flags.negative = (result >> 63);
+            cpsr.flags.negative = Common::IsBitSet<63>(result);
             cpsr.flags.zero = (result == 0);
         }
     } else {
@@ -50,35 +51,39 @@ void ARM7::ARM_MultiplyLong(const u32 opcode) {
         if (accumulate) {
             result += ((static_cast<u64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
         }
-        SetRegister(rdlo, result & 0xFFFFFFFF);
-        SetRegister(rdhi, result >> 32);
+        SetRegister(rdlo, Common::GetBitRange<31, 0>(result));
+        SetRegister(rdhi, Common::GetBitRange<63, 32>(result));
 
         if (set_condition_codes) {
-            cpsr.flags.negative = (result >> 63);
+            cpsr.flags.negative = Common::IsBitSet<63>(result);
             cpsr.flags.zero = (result == 0);
         }
     }
 }
 
 void ARM7::ARM_SingleDataSwap(const u32 opcode) {
-    const bool swap_byte = (opcode >> 22) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 rm = opcode & 0xF;
+    const bool swap_byte = Common::IsBitSet<22>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
+
+    const u32 address = GetRegister(rn);
 
     if (swap_byte) {
-        SetRegister(rd, bus.Read8(GetRegister(rn)));
-        bus.Write8(GetRegister(rn), GetRegister(rm));
+        const u8 swap_value = bus.Read8(address);
+        bus.Write8(address, GetRegister(rm));
+        SetRegister(rd, swap_value);
     } else {
-        SetRegister(rd, bus.Read32(GetRegister(rn)));
-        bus.Write32(GetRegister(rn), GetRegister(rm));
+        const u32 swap_value = bus.Read32(address);
+        bus.Write32(address, GetRegister(rm));
+        SetRegister(rd, swap_value);
     }
 }
 
 void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const bool sign = (opcode >> 6) & 0b1;
-    const bool halfword = (opcode >> 5) & 0b1;
+    const bool load_from_memory = Common::IsBitSet<20>(opcode);
+    const bool sign = Common::IsBitSet<6>(opcode);
+    const bool halfword = Common::IsBitSet<5>(opcode);
 
     const u8 conditions = (load_from_memory << 1) | halfword;
     switch (conditions) {
@@ -101,12 +106,12 @@ void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
 
 template <bool load_from_memory, bool transfer_halfword>
 void ARM7::ARM_HalfwordDataTransferRegister_Impl(const u32 opcode, const bool sign) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 rm = opcode & 0xF;
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
     u32 address = GetRegister(rn);
     if (pre_indexing) {
@@ -175,9 +180,9 @@ void ARM7::ARM_HalfwordDataTransferRegister_Impl(const u32 opcode, const bool si
 }
 
 void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const bool sign = (opcode >> 6) & 0b1;
-    const bool halfword = (opcode >> 5) & 0b1;
+    const bool load_from_memory = Common::IsBitSet<20>(opcode);
+    const bool sign = Common::IsBitSet<6>(opcode);
+    const bool halfword = Common::IsBitSet<5>(opcode);
 
     const u8 conditions = (load_from_memory << 1) | halfword;
     switch (conditions) {
@@ -200,14 +205,14 @@ void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
 }
 
 void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 offset_high = (opcode >> 8) & 0xF;
-    const u8 offset_low = opcode & 0xF;
-    const u8 offset = (offset_high << 4) | offset_low;
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto offset_high = Common::GetBitRange<11, 8>(opcode);
+    const std::unsigned_integral auto offset_low = Common::GetBitRange<3, 0>(opcode);
+    const std::unsigned_integral auto offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
     if (pre_indexing) {
@@ -244,13 +249,13 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
 }
 
 void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 offset_high = (opcode >> 8) & 0xF;
-    const u8 offset_low = opcode & 0xF;
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto offset_high = Common::GetBitRange<11, 8>(opcode);
+    const std::unsigned_integral auto offset_low = Common::GetBitRange<3, 0>(opcode);
     const u8 offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
@@ -280,13 +285,13 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
 }
 
 void ARM7::ARM_LoadSignedByte(const u32 opcode) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const s8 offset_high = (opcode >> 8) & 0xF;
-    const s8 offset_low = opcode & 0xF;
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto offset_high = Common::GetBitRange<11, 8>(opcode);
+    const std::unsigned_integral auto offset_low = Common::GetBitRange<3, 0>(opcode);
     const s8 offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
@@ -341,20 +346,20 @@ void ARM7::ARM_SingleDataTransfer(const u32 opcode) {
 
 template <bool load_from_memory, bool transfer_byte>
 void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
-    const bool offset_is_register = (opcode >> 25) & 0b1;
-    const bool add_before_transfer = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
+    const bool offset_is_register = Common::IsBitSet<25>(opcode);
+    const bool add_before_transfer = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
     s16 offset = 0;
     if (offset_is_register) {
-        const u8 shift = (opcode >> 4) & 0xFF;
-        const u8 rm = opcode & 0xF;
+        const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(opcode);
+        const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
-        if ((shift & 0b1) == 0) {
-            const u8 shift_amount = (shift >> 3) & 0x1F;
-            const ShiftType shift_type = static_cast<ShiftType>((shift >> 1) & 0b11);
+        if (!Common::IsBitSet<0>(shift)) {
+            std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
+            auto shift_type = ShiftType(Common::GetBitRange<2, 1>(shift));
 
             offset = Shift(GetRegister(rm), shift_type, shift_amount);
             if (!add_offset_to_base) {
@@ -366,7 +371,7 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             ASSERT(false);
         }
     } else {
-        offset = opcode & 0xFFF;
+        offset = Common::GetBitRange<11, 0>(opcode);
     }
 
     u32 address = GetRegister(rn);
@@ -428,15 +433,17 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
 }
 
 void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool load_psr = (opcode >> 22) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u16 rlist = opcode & 0xFFFF;
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool load_psr = Common::IsBitSet<22>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const bool load_from_memory = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rlist = Common::GetBitRange<15, 0>(opcode);
 
-    ASSERT_MSG(!load_psr, "unimplemented load PSR in block data transfer");
+    if (load_psr) {
+        LERROR("unimplemented load PSR in block data transfer");
+    }
 
     // Go through `rlist`'s 16 bits, and write down which bits are set. This tells
     // us which registers we need to load/store.

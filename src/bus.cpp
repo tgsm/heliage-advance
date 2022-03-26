@@ -1,4 +1,5 @@
 #include "bus.h"
+#include "common/bits.h"
 #include "common/logging.h"
 
 Bus::Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_)
@@ -321,8 +322,8 @@ void Bus::Write32(u32 addr, u32 value) {
                     dma_channels[0].destination_address = value;
                     return;
                 case 0x40000B8:
-                    dma_channels[0].word_count = value & 0xFFFF;
-                    SetDMAControl<0>(value >> 16);
+                    dma_channels[0].word_count = Common::GetBitRange<15, 0>(value);
+                    SetDMAControl<0>(Common::GetBitRange<31, 16>(value));
                     return;
                 case 0x40000BC:
                     dma_channels[1].source_address = value;
@@ -331,8 +332,8 @@ void Bus::Write32(u32 addr, u32 value) {
                     dma_channels[1].destination_address = value;
                     return;
                 case 0x40000C4:
-                    dma_channels[1].word_count = value & 0xFFFF;
-                    SetDMAControl<1>(value >> 16);
+                    dma_channels[1].word_count = Common::GetBitRange<15, 0>(value);
+                    SetDMAControl<1>(Common::GetBitRange<31, 16>(value));
                     return;
                 case 0x40000C8:
                     dma_channels[2].source_address = value;
@@ -341,8 +342,8 @@ void Bus::Write32(u32 addr, u32 value) {
                     dma_channels[2].destination_address = value;
                     return;
                 case 0x40000D0:
-                    dma_channels[2].word_count = value & 0xFFFF;
-                    SetDMAControl<2>(value >> 16);
+                    dma_channels[2].word_count = Common::GetBitRange<15, 0>(value);
+                    SetDMAControl<2>(Common::GetBitRange<31, 16>(value));
                     return;
                 case 0x40000D4:
                     dma_channels[3].source_address = value;
@@ -351,8 +352,8 @@ void Bus::Write32(u32 addr, u32 value) {
                     dma_channels[3].destination_address = value;
                     return;
                 case 0x40000DC:
-                    dma_channels[3].word_count = value & 0xFFFF;
-                    SetDMAControl<3>(value >> 16);
+                    dma_channels[3].word_count = Common::GetBitRange<15, 0>(value);
+                    SetDMAControl<3>(Common::GetBitRange<31, 16>(value));
                     return;
                 default:
                     LERROR("unrecognized write32 0x{:08X} to IO register 0x{:08X}", value, masked_addr);

@@ -2,8 +2,9 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/reverse.hpp>
-#include "arm7.h"
+#include "common/bits.h"
 #include "common/logging.h"
+#include "arm7.h"
 
 void ARM7::DisassembleARMInstruction(const ARM_Instructions instr, const u32 opcode) {
     switch (instr) {
@@ -158,13 +159,13 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
         return;
     }
 
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool op2_is_immediate = (opcode >> 25) & 0b1;
-    const u8 op = (opcode >> 21) & 0xF;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u16 op2 = opcode & 0xFFF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool op2_is_immediate = Common::IsBitSet<25>(opcode);
+    const std::unsigned_integral auto op = Common::GetBitRange<24, 21>(opcode);
+    const bool set_condition_codes = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto op2 = Common::GetBitRange<11, 0>(opcode);
     std::string disasm;
 
     constexpr std::array<const char*, 16> mnemonics = {
@@ -184,17 +185,17 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             disasm += fmt::format(" {}, ", GetRegAsStr(rd));
 
             if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
+                const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
+                const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
+                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1);
 
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                u8 rm = op2 & 0xF;
-                if ((shift & 0b1) == 0) {
-                    u16 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
+                const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(op2);
+                const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(op2);
+                if (!Common::IsBitSet<0>(shift)) {
+                    std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
+                    std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
 
                     if (shift_amount == 0 && shift_type == static_cast<u8>(ShiftType::LSL)) {
                         disasm += GetRegAsStr(rm);
@@ -216,9 +217,9 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                             disasm += fmt::format(" #{}", shift_amount);
                         }
                     }
-                } else if ((shift & 0b1001) == 0b0001) {
-                    u8 rs = (shift >> 4) & 0xF;
-                    u8 shift_type = (shift >> 1) & 0b11;
+                } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
+                    const std::unsigned_integral auto rs = Common::GetBitRange<7, 4>(shift);
+                    const std::unsigned_integral auto shift_type = Common::GetBitRange<3, 2>(shift);
 
                     disasm += fmt::format("{}, ", GetRegAsStr(rm));
 
@@ -239,17 +240,17 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             disasm += fmt::format(" {}, ", GetRegAsStr(rn));
 
             if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
+                const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
+                const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
                 u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
 
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                if ((shift & 0b1) == 0) {
-                    u16 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
-                    u8 rm = op2 & 0xF;
+                const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(op2);
+                if (!Common::IsBitSet<0>(shift)) {
+                    const std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
+                    const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
+                    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(op2);
 
                     if (!shift_amount) {
                         disasm += GetRegAsStr(rm);
@@ -286,17 +287,17 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             disasm += fmt::format(" {}, {}, ", GetRegAsStr(rd), GetRegAsStr(rn));
 
             if (op2_is_immediate) {
-                u8 rotate_amount = (op2 >> 8) & 0xF;
-                u8 imm = op2 & 0xFF;
+                const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
+                const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
                 u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
 
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
-                u8 shift = (op2 >> 4) & 0xFF;
-                if ((shift & 0b1) == 0) {
-                    u16 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
-                    u8 rm = op2 & 0xF;
+                const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(op2);
+                if (!Common::IsBitSet<0>(shift)) {
+                    const std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
+                    const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
+                    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(op2);
 
                     if (!shift_amount) {
                         disasm += GetRegAsStr(rm);
@@ -308,7 +309,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
 
                         disasm += fmt::format(" #{}", shift_amount);
                     }
-                } else if ((shift & 0b1001) == 0b0001) {
+                } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
                     UNIMPLEMENTED();
                 } else {
                     ASSERT(false);
@@ -323,9 +324,9 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleMRS(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool source_is_spsr = (opcode >> 22) & 0b1;
-    const u8 rd = (opcode >> 12) & 0xF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool source_is_spsr = Common::IsBitSet<22>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
     std::string disasm;
 
     disasm += fmt::format("MRS{} ", GetConditionCode(cond));
@@ -343,14 +344,14 @@ void ARM7::ARM_DisassembleMRS(const u32 opcode) {
 
 template <bool flag_bits_only>
 void ARM7::ARM_DisassembleMSR(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool destination_is_spsr = (opcode >> 22) & 0b1;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool destination_is_spsr = Common::IsBitSet<22>(opcode);
     std::string disasm;
 
     disasm += fmt::format("MSR{} ", GetConditionCode(cond));
 
-    const bool operand_is_immediate = (opcode >> 25) & 0b1;
-    const u16 source_operand = opcode & 0xFFF;
+    const bool operand_is_immediate = Common::IsBitSet<25>(opcode);
+    const std::unsigned_integral auto source_operand = Common::GetBitRange<11, 0>(opcode);
 
     if (destination_is_spsr) {
         disasm += "SPSR_";
@@ -365,12 +366,12 @@ void ARM7::ARM_DisassembleMSR(const u32 opcode) {
     }
 
     if (operand_is_immediate) {
-        const u8 rotate_amount = (source_operand >> 8) & 0xF;
-        const u8 immediate = source_operand & 0xFF;
+        const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(opcode);
+        const std::unsigned_integral auto immediate = Common::GetBitRange<7, 0>(opcode);
 
         disasm += fmt::format("#0x{:08X}", Shift_RotateRight(immediate, rotate_amount << 1));
     } else {
-        const u8 rm = source_operand & 0xF;
+        const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(source_operand);
         disasm += GetRegAsStr(rm);
     }
 
@@ -378,13 +379,13 @@ void ARM7::ARM_DisassembleMSR(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleMultiply(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool accumulate = (opcode >> 21) & 0b1;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rd = (opcode >> 16) & 0xF;
-    const u8 rn = (opcode >> 12) & 0xF;
-    const u8 rs = (opcode >> 8) & 0xF;
-    const u8 rm = opcode & 0xF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool accumulate = Common::IsBitSet<21>(opcode);
+    const bool set_condition_codes = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<11, 8>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
     std::string disasm;
 
     if (accumulate) {
@@ -409,14 +410,14 @@ void ARM7::ARM_DisassembleMultiply(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool sign = (opcode >> 22) & 0b1;
-    const bool accumulate = (opcode >> 21) & 0b1;
-    const bool set_condition_codes = (opcode >> 20) & 0b1;
-    const u8 rdhi = (opcode >> 16) & 0xF;
-    const u8 rdlo = (opcode >> 12) & 0xF;
-    const u8 rs = (opcode >> 8) & 0xF;
-    const u8 rm = opcode & 0xF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool sign = Common::IsBitSet<22>(opcode);
+    const bool accumulate = Common::IsBitSet<21>(opcode);
+    const bool set_condition_codes = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rdhi = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rdlo = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<11, 8>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
     std::string disasm;
 
     if (sign) {
@@ -443,11 +444,11 @@ void ARM7::ARM_DisassembleMultiplyLong(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleSingleDataSwap(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool swap_byte = (opcode >> 22) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 rm = opcode & 0xF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool swap_byte = Common::IsBitSet<22>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
     std::string disasm;
 
     disasm += fmt::format("SWP{}", GetConditionCode(cond));
@@ -462,8 +463,8 @@ void ARM7::ARM_DisassembleSingleDataSwap(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleBranchAndExchange(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const u8 rn = opcode & 0xF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<3, 0>(opcode);
     std::string disasm;
 
     disasm += fmt::format("BX{} {}", GetConditionCode(cond), GetRegAsStr(rn));
@@ -472,16 +473,16 @@ void ARM7::ARM_DisassembleBranchAndExchange(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const bool sign = (opcode >> 6) & 0b1;
-    const bool halfword = (opcode >> 5) & 0b1;
-    const u8 rm = opcode & 0xF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const bool load_from_memory = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const bool sign = Common::IsBitSet<6>(opcode);
+    const bool halfword = Common::IsBitSet<5>(opcode);
+    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
     std::string disasm;
 
     if (!sign && !halfword) {
@@ -531,18 +532,18 @@ void ARM7::ARM_DisassembleHalfwordDataTransferRegister(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u8 offset_high = (opcode >> 8) & 0xF;
-    const bool sign = (opcode >> 6) & 0b1;
-    const bool halfword = (opcode >> 5) & 0b1;
-    const u8 offset_low = opcode & 0xF;
-    const u8 offset = (offset_high << 4) | offset_low;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const bool load_from_memory = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto offset_high = Common::GetBitRange<11, 8>(opcode);
+    const bool sign = Common::IsBitSet<6>(opcode);
+    const bool halfword = Common::IsBitSet<5>(opcode);
+    const std::unsigned_integral auto offset_low = Common::GetBitRange<3, 0>(opcode);
+    const std::unsigned_integral auto offset = (offset_high << 4) | offset_low;
     std::string disasm;
 
     if (!sign && !halfword) {
@@ -596,16 +597,16 @@ void ARM7::ARM_DisassembleHalfwordDataTransferImmediate(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool offset_is_register = (opcode >> 25) & 0b1;
-    const bool add_before_transfer = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool transfer_byte = (opcode >> 22) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u8 rd = (opcode >> 12) & 0xF;
-    const u16 offset = opcode & 0xFFF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool offset_is_register = Common::IsBitSet<25>(opcode);
+    const bool add_before_transfer = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool transfer_byte = Common::IsBitSet<22>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const bool load_from_memory = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
+    const std::unsigned_integral auto offset = Common::GetBitRange<11, 0>(opcode);
     std::string disasm;
 
     if (load_from_memory) {
@@ -631,8 +632,8 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
             disasm += fmt::format("[{}]", GetRegAsStr(rn));
         } else {
             if (offset_is_register) {
-                u8 shift = (offset >> 4) & 0xFF;
-                u8 rm = offset & 0xF;
+                const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(opcode);
+                const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
                 disasm += fmt::format("[{}, ", GetRegAsStr(rn));
                 if (!add_offset_to_base) {
@@ -640,9 +641,9 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
                 }
                 disasm += GetRegAsStr(rm);
 
-                if ((shift & 0b1) == 0) {
-                    u16 shift_amount = (shift >> 3) & 0x1F;
-                    u8 shift_type = (shift >> 1) & 0b11;
+                if (!Common::IsBitSet<0>(shift)) {
+                    const std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
+                    const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
 
                     if (!shift_amount) {
                         disasm += "]";
@@ -650,7 +651,7 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
                         constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
                         disasm += fmt::format(", {} #{}]", shift_types[shift_type], shift_amount);
                     }
-                } else if ((shift & 0b1001) == 0b0001) {
+                } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
                     UNIMPLEMENTED();
                 } else {
                     ASSERT(false);
@@ -665,8 +666,8 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
         }
     } else {
         if (offset_is_register) {
-            u8 shift = (offset >> 4) & 0xFF;
-            u8 rm = offset & 0xF;
+            const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(offset);
+            const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(offset);
 
             disasm += fmt::format("[{}], ", GetRegAsStr(rn));
             if (!add_offset_to_base) {
@@ -674,15 +675,15 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
             }
             disasm += GetRegAsStr(rm);
 
-            if ((shift & 0b1) == 0) {
-                u16 shift_amount = (shift >> 3) & 0x1F;
-                u8 shift_type = (shift >> 1) & 0b11;
+            if (!Common::IsBitSet<0>(shift)) {
+                const std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
+                const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
 
                 if (shift_amount) {
                     constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
                     disasm += fmt::format(", {} #{}", shift_types[shift_type], shift_amount);
                 }
-            } else if ((shift & 0b1001) == 0b0001) {
+            } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
                 UNIMPLEMENTED();
             } else {
                 ASSERT(false);
@@ -700,14 +701,14 @@ void ARM7::ARM_DisassembleSingleDataTransfer(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleBlockDataTransfer(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool pre_indexing = (opcode >> 24) & 0b1;
-    const bool add_offset_to_base = (opcode >> 23) & 0b1;
-    const bool load_psr = (opcode >> 22) & 0b1;
-    const bool write_back = (opcode >> 21) & 0b1;
-    const bool load_from_memory = (opcode >> 20) & 0b1;
-    const u8 rn = (opcode >> 16) & 0xF;
-    const u16 rlist = opcode & 0xFFFF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool pre_indexing = Common::IsBitSet<24>(opcode);
+    const bool add_offset_to_base = Common::IsBitSet<23>(opcode);
+    const bool load_psr = Common::IsBitSet<22>(opcode);
+    const bool write_back = Common::IsBitSet<21>(opcode);
+    const bool load_from_memory = Common::IsBitSet<20>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
+    const std::unsigned_integral auto rlist = Common::GetBitRange<15, 0>(opcode);
     std::string disasm;
 
     if (!load_from_memory && rn == 13 && !add_offset_to_base && pre_indexing && write_back) {
@@ -782,9 +783,9 @@ void ARM7::ARM_DisassembleBlockDataTransfer(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleBranch(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const bool link = (opcode >> 24) & 0b1;
-    s32 offset = (opcode & 0xFFFFFF) << 2;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const bool link = Common::IsBitSet<24>(opcode);
+    s32 offset = Common::GetBitRange<23, 0>(opcode) << 2;
     std::string disasm;
 
     disasm += "B";
@@ -804,18 +805,18 @@ void ARM7::ARM_DisassembleBranch(const u32 opcode) {
 }
 
 void ARM7::ARM_DisassembleSoftwareInterrupt(const u32 opcode) {
-    const u8 cond = (opcode >> 28) & 0xF;
-    const u32 comment = opcode & 0xFFFFFF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<31, 28>(opcode);
+    const std::unsigned_integral auto comment = Common::GetBitRange<23, 0>(opcode);
 
     std::string disasm = fmt::format("SWI{} 0x{:X}", GetConditionCode(cond), comment);
     LTRACE_ARM("{}", disasm);
 }
 
 void ARM7::Thumb_DisassembleMoveShiftedRegister(const u16 opcode) {
-    const u8 op = (opcode >> 11) & 0x3;
-    u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto op = Common::GetBitRange<12, 11>(opcode);
+    std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     if (!offset) {
         offset = 32;
@@ -832,10 +833,10 @@ void ARM7::Thumb_DisassembleMoveShiftedRegister(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleAddSubtract(const u16 opcode) {
-    const bool operand_is_immediate = (opcode >> 10) & 0b1;
-    const bool subtracting = (opcode >> 9) & 0b1;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool operand_is_immediate = Common::IsBitSet<10>(opcode);
+    const bool subtracting = Common::IsBitSet<9>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     std::string disasm;
 
     if (subtracting) {
@@ -847,10 +848,10 @@ void ARM7::Thumb_DisassembleAddSubtract(const u16 opcode) {
     disasm += fmt::format(" {}, {}, ", GetRegAsStr(rd), GetRegAsStr(rs));
 
     if (operand_is_immediate) {
-        const u8 immediate = (opcode >> 6) & 0x7;
+        const std::unsigned_integral auto immediate = Common::GetBitRange<8, 6>(opcode);
         disasm += fmt::format("#0x{:02X}", immediate);
     } else {
-        const u8 rn = (opcode >> 6) & 0x7;
+        const std::unsigned_integral auto rn = Common::GetBitRange<8, 6>(opcode);
         disasm += GetRegAsStr(rn);
     }
 
@@ -858,9 +859,9 @@ void ARM7::Thumb_DisassembleAddSubtract(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleMoveCompareAddSubtractImmediate(const u16 opcode) {
-    const u8 op = (opcode >> 11) & 0x3;
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 offset = opcode & 0xFF;
+    const std::unsigned_integral auto op = Common::GetBitRange<12, 11>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto offset = Common::GetBitRange<7, 0>(opcode);
     std::string disasm;
 
     constexpr std::array<const char*, 4> mnemonics = { "MOV", "CMP", "ADD", "SUB" };
@@ -872,9 +873,9 @@ void ARM7::Thumb_DisassembleMoveCompareAddSubtractImmediate(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleALUOperations(const u16 opcode) {
-    const u8 op = (opcode >> 6) & 0xF;
-    const u8 rs = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const std::unsigned_integral auto op = Common::GetBitRange<9, 6>(opcode);
+    const std::unsigned_integral auto rs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     std::string disasm;
 
     const std::array<std::string, 16> mnemonics = {
@@ -888,11 +889,11 @@ void ARM7::Thumb_DisassembleALUOperations(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleHiRegisterOperationsBranchExchange(const u16 opcode) {
-    const u8 op = (opcode >> 8) & 0x3;
-    const bool h1 = (opcode >> 7) & 0b1;
-    const bool h2 = (opcode >> 6) & 0b1;
-    const u8 rs_hs = (opcode >> 3) & 0x7;
-    const u8 rd_hd = opcode & 0x7;
+    const std::unsigned_integral auto op = Common::GetBitRange<9, 8>(opcode);
+    const bool h1 = Common::IsBitSet<7>(opcode);
+    const bool h2 = Common::IsBitSet<6>(opcode);
+    const std::unsigned_integral auto rs_hs = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd_hd = Common::GetBitRange<2, 0>(opcode);
     std::string disasm;
 
     const std::array<std::string, 4> mnemonics = { "ADD", "CMP", "MOV", "BX" };
@@ -912,18 +913,18 @@ void ARM7::Thumb_DisassembleHiRegisterOperationsBranchExchange(const u16 opcode)
 }
 
 void ARM7::Thumb_DisassemblePCRelativeLoad(const u16 opcode) {
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 imm = opcode & 0xFF;
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(opcode);
 
     LTRACE_THUMB("LDR {}, [PC, #0x{:08X}]", GetRegAsStr(rd), imm);
 }
 
 void ARM7::Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const bool transfer_byte = (opcode >> 10) & 0b1;
-    const u8 ro = (opcode >> 6) & 0x7;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const bool transfer_byte = Common::IsBitSet<10>(opcode);
+    const std::unsigned_integral auto ro = Common::GetBitRange<8, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     std::string disasm;
 
     if (load_from_memory) {
@@ -942,11 +943,11 @@ void ARM7::Thumb_DisassembleLoadStoreWithRegisterOffset(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode) {
-    const bool h_flag = (opcode >> 11) & 0b1;
-    const bool sign_extend = (opcode >> 10) & 0b1;
-    const u8 ro = (opcode >> 6) & 0x7;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool h_flag = Common::IsBitSet<11>(opcode);
+    const bool sign_extend = Common::IsBitSet<10>(opcode);
+    const std::unsigned_integral auto ro = Common::GetBitRange<8, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     std::string disasm;
 
     if (sign_extend) {
@@ -969,11 +970,11 @@ void ARM7::Thumb_DisassembleLoadStoreSignExtendedByteHalfword(const u16 opcode) 
 }
 
 void ARM7::Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode) {
-    const bool transfer_byte = (opcode >> 12) & 0b1;
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 offset = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool transfer_byte = Common::IsBitSet<12>(opcode);
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto offset = Common::GetBitRange<10, 6>(opcode);;
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     std::string disasm;
 
     if (load_from_memory) {
@@ -992,10 +993,10 @@ void ARM7::Thumb_DisassembleLoadStoreWithImmediateOffset(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 imm = (opcode >> 6) & 0x1F;
-    const u8 rb = (opcode >> 3) & 0x7;
-    const u8 rd = opcode & 0x7;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<10, 6>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     std::string disasm;
 
     if (load_from_memory) {
@@ -1010,9 +1011,9 @@ void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleSPRelativeLoadStore(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 imm = opcode & 0xFF;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(opcode);
     std::string disasm;
 
     if (load_from_memory) {
@@ -1027,9 +1028,9 @@ void ARM7::Thumb_DisassembleSPRelativeLoadStore(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
-    const bool load_from_sp = (opcode >> 11) & 0b1;
-    const u8 rd = (opcode >> 8) & 0x7;
-    const u8 imm = opcode & 0xFF;
+    const bool load_from_sp = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto rd = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(opcode);
     std::string disasm;
 
     disasm += fmt::format("ADD {}, ", GetRegAsStr(rd));
@@ -1046,8 +1047,8 @@ void ARM7::Thumb_DisassembleLoadAddress(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode) {
-    const bool offset_is_negative = (opcode >> 7) & 0b1;
-    const u8 imm = opcode & 0x7F;
+    const bool offset_is_negative = Common::IsBitSet<7>(opcode);
+    const std::unsigned_integral auto imm = Common::GetBitRange<6, 0>(opcode);
     std::string disasm;
 
     disasm += "ADD SP, #";
@@ -1060,9 +1061,9 @@ void ARM7::Thumb_DisassembleAddOffsetToStackPointer(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const bool store_lr_load_pc = (opcode >> 8) & 0b1;
-    const u8 rlist = opcode & 0xFF;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const bool store_lr_load_pc = Common::IsBitSet<8>(opcode);
+    const std::unsigned_integral auto rlist = Common::GetBitRange<7, 0>(opcode);
     std::string disasm;
 
     if (load_from_memory) {
@@ -1118,9 +1119,9 @@ void ARM7::Thumb_DisassemblePushPopRegisters(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleMultipleLoadStore(const u16 opcode) {
-    const bool load_from_memory = (opcode >> 11) & 0b1;
-    const u8 rb = (opcode >> 8) & 0x7;
-    const u8 rlist = opcode & 0xFF;
+    const bool load_from_memory = Common::IsBitSet<11>(opcode);
+    const std::unsigned_integral auto rb = Common::GetBitRange<10, 8>(opcode);
+    const std::unsigned_integral auto rlist = Common::GetBitRange<7, 0>(opcode);
     std::string disasm;
 
     if (load_from_memory) {
@@ -1153,8 +1154,9 @@ void ARM7::Thumb_DisassembleMultipleLoadStore(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleConditionalBranch(const u16 opcode) {
-    const u8 cond = (opcode >> 8) & 0xF;
-    const s8 offset = opcode & 0xFF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<11, 8>(opcode);
+    const s8 offset = static_cast<s8>(Common::GetBitRange<7, 0>(opcode));
+
     std::string disasm;
 
     ASSERT(cond != 0xF);
@@ -1170,13 +1172,13 @@ void ARM7::Thumb_DisassembleConditionalBranch(const u16 opcode) {
 }
 
 void ARM7::Thumb_DisassembleSoftwareInterrupt(const u16 opcode) {
-    const u8 comment = opcode & 0xFF;
+    const std::unsigned_integral auto comment = Common::GetBitRange<7, 0>(opcode);
 
     LTRACE_THUMB("SWI 0x{:X}", comment);
 }
 
 void ARM7::Thumb_DisassembleUnconditionalBranch(const u16 opcode) {
-    s16 offset = (opcode & 0x7FF) << 1;
+    s16 offset = static_cast<s16>((Common::GetBitRange<11, 0>(opcode)) << 1);
 
     // Sign-extend to 16 bits
     offset <<= 4;
@@ -1189,18 +1191,18 @@ void ARM7::Thumb_DisassembleLongBranchWithLink(const u16 opcode) {
     const u16 next_opcode = bus.Read16(GetPC() - 2);
     // Used for LTRACE_DOUBLETHUMB
     const u32 double_opcode = (static_cast<u32>(opcode) << 16) | next_opcode;
-    s16 offset = opcode & 0x7FF;
-    const u16 next_offset = next_opcode & 0x7FF;
+    s16 offset = Common::GetBitRange<10, 0>(opcode);
+    const u16 next_offset = Common::GetBitRange<10, 0>(next_opcode);
 
     u32 pc = GetPC();
 
-    const bool first_instruction = ((opcode >> 11) & 0b1) == 0b0;
+    const bool first_instruction = !Common::IsBitSet<11>(opcode);
     ASSERT(first_instruction);
 
     offset <<= 5;
     u32 lr = pc + (static_cast<s32>(offset) << 7);
 
-    const bool second_instruction = ((next_opcode >> 11) & 0b1) == 0b1;
+    const bool second_instruction = Common::IsBitSet<11>(next_opcode);
     ASSERT(second_instruction);
 
     pc = lr + (next_offset << 1);

@@ -1,8 +1,9 @@
+#include "common/bits.h"
 #include "arm7/arm7.h"
 
 void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
-    const u8 cond = (opcode >> 8) & 0xF;
-    const s8 offset = opcode & 0xFF;
+    const std::unsigned_integral auto cond = Common::GetBitRange<11, 8>(opcode);
+    const s8 offset = Common::GetBitRange<7, 0>(opcode);
 
     bool condition = false;
     switch (cond) {
@@ -80,7 +81,7 @@ void ARM7::Thumb_SoftwareInterrupt([[maybe_unused]] const u16 opcode) {
 }
 
 void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
-    s16 offset = (opcode & 0x7FF) << 1;
+    s16 offset = Common::GetBitRange<10, 0>(opcode) << 1;
 
     // Sign-extend to 16 bits
     offset <<= 4;
@@ -91,8 +92,8 @@ void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
 
 void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
     const u16 next_opcode = bus.Read16(GetPC() - 2);
-    s16 offset = opcode & 0x7FF;
-    const u16 next_offset = next_opcode & 0x7FF;
+    s16 offset = Common::GetBitRange<10, 0>(opcode);
+    const auto next_offset = Common::GetBitRange<10, 0>(next_opcode);
 
     u32 pc = GetPC();
 

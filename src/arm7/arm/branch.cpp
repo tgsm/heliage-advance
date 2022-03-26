@@ -1,18 +1,19 @@
+#include "common/bits.h"
 #include "arm7/arm7.h"
 
 void ARM7::ARM_BranchAndExchange(const u32 opcode) {
-    const u8 rn = opcode & 0xF;
+    const u8 rn = Common::GetBitRange<3, 0>(opcode);
 
     // If bit 0 of Rn is set, we switch to THUMB mode. Else, we switch to ARM mode.
-    cpsr.flags.thumb_mode = GetRegister(rn) & 0b1;
+    cpsr.flags.thumb_mode = Common::IsBitSet<0>(GetRegister(rn));
     LDEBUG("thumb: {}", cpsr.flags.thumb_mode);
 
     SetPC(GetRegister(rn) & ~0b1);
 }
 
 void ARM7::ARM_Branch(const u32 opcode) {
-    const bool link = (opcode >> 24) & 0b1;
-    s32 offset = (opcode & 0xFFFFFF) << 2;
+    const bool link = Common::IsBitSet<24>(opcode);
+    s32 offset = (Common::GetBitRange<23, 0>(opcode)) << 2;
 
     offset <<= 6;
     offset >>= 6;
