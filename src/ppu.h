@@ -123,9 +123,52 @@ public:
         }
     }
 
+    template <UnsignedIntegerMax32 T>
+    [[nodiscard]] T ReadOAM(u32 addr) const {
+        if constexpr (std::is_same_v<T, u8>) {
+            return oam.at(addr);
+        }
+
+        if constexpr (std::is_same_v<T, u16>) {
+            addr &= ~0b1;
+            return (oam.at(addr) |
+                   (oam.at(addr + 1) << 8));
+        }
+
+        if constexpr (std::is_same_v<T, u32>) {
+            addr &= ~0b11;
+            return (oam.at(addr) |
+                   (oam.at(addr + 1) << 8) |
+                   (oam.at(addr + 2) << 16) |
+                   (oam.at(addr + 3) << 24));
+        }
+    }
+
+    template <UnsignedIntegerMax32 T>
+    void WriteOAM(u32 addr, const T value) {
+        if constexpr (std::is_same_v<T, u8>) {
+            oam.at(addr) = value;
+        }
+
+        if constexpr (std::is_same_v<T, u16>) {
+            addr &= ~0b1;
+            oam.at(addr + 0) = Common::GetBitRange<7, 0>(value);
+            oam.at(addr + 1) = Common::GetBitRange<15, 8>(value);
+        }
+
+        if constexpr (std::is_same_v<T, u32>) {
+            addr &= ~0b11;
+            oam.at(addr + 0) = Common::GetBitRange<7, 0>(value);
+            oam.at(addr + 1) = Common::GetBitRange<15, 8>(value);
+            oam.at(addr + 2) = Common::GetBitRange<23, 16>(value);
+            oam.at(addr + 3) = Common::GetBitRange<31, 24>(value);
+        }
+    }
+
 private:
     std::array<u8, 0x18000> vram {};
-    std::array<u8, 0x400> pram {}; // Palette RAM
+    std::array<u8, 0x400> pram {};
+    std::array<u8, 0x400> oam {};
     std::array<u16, GBA_SCREEN_WIDTH * GBA_SCREEN_HEIGHT> framebuffer {};
 
     Bus& bus;

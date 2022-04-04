@@ -46,6 +46,9 @@ u8 Bus::Read8(u32 addr) {
             return value;
         }
 
+        case 0x7:
+            return ppu.ReadOAM<u8>(masked_addr & 0x3FF);
+
         case 0x8:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
                 // TODO: open bus?
@@ -82,6 +85,10 @@ void Bus::Write8(u32 addr, u8 value) {
             ppu.WriteVRAM<u8>(address, value);
             return;
         }
+
+        case 0x7:
+            // Can't write 8bit data to OAM.
+            return;
 
         default:
             LERROR("unrecognized write8 0x{:02X} to 0x{:08X}", value, masked_addr);
@@ -142,6 +149,9 @@ u16 Bus::Read16(u32 addr) {
             LDEBUG("read16 0x{:04X} from 0x{:08X} (VRAM)", value, masked_addr);
             return value;
         }
+
+        case 0x7:
+            return ppu.ReadOAM<u16>(masked_addr & 0x3FF);
 
         case 0x8:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
@@ -222,6 +232,10 @@ void Bus::Write16(u32 addr, u16 value) {
             return;
         }
 
+        case 0x7:
+            ppu.WriteOAM<u16>(masked_addr & 0x3FF, value);
+            return;
+
         default:
             LERROR("unrecognized write16 0x{:04X} to 0x{:08X}", value, addr);
             return;
@@ -277,6 +291,9 @@ u32 Bus::Read32(u32 addr) {
             LDEBUG("read32 0x{:08X} from 0x{:08X} (VRAM)", value, masked_addr);
             return value;
         }
+
+        case 0x7:
+            return ppu.ReadOAM<u32>(masked_addr & 0x3FF);
 
         case 0x8:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
@@ -375,6 +392,10 @@ void Bus::Write32(u32 addr, u32 value) {
             ppu.WriteVRAM<u32>(address, value);
             return;
         }
+
+        case 0x7:
+            ppu.WriteOAM<u32>(masked_addr & 0x3FF, value);
+            return;
 
         case 0x8:
             LWARN("tried to write32 0x{:08X} to 0x{:08X} (cartridge space)", value, masked_addr);
