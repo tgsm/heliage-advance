@@ -187,7 +187,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             if (op2_is_immediate) {
                 const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
                 const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1);
+                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1, false);
 
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
@@ -219,7 +219,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                     }
                 } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
                     const std::unsigned_integral auto rs = Common::GetBitRange<7, 4>(shift);
-                    const std::unsigned_integral auto shift_type = Common::GetBitRange<3, 2>(shift);
+                    const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
 
                     disasm += fmt::format("{}, ", GetRegAsStr(rm));
 
@@ -242,7 +242,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             if (op2_is_immediate) {
                 const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
                 const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
+                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1, false);
 
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
@@ -289,7 +289,7 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
             if (op2_is_immediate) {
                 const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
                 const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
-                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount * 2);
+                u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1, false);
 
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
@@ -369,7 +369,7 @@ void ARM7::ARM_DisassembleMSR(const u32 opcode) {
         const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(opcode);
         const std::unsigned_integral auto immediate = Common::GetBitRange<7, 0>(opcode);
 
-        disasm += fmt::format("#0x{:08X}", Shift_RotateRight(immediate, rotate_amount << 1));
+        disasm += fmt::format("#0x{:08X}", Shift_RotateRight(immediate, static_cast<u8>(rotate_amount << 1), false));
     } else {
         const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(source_operand);
         disasm += GetRegAsStr(rm);

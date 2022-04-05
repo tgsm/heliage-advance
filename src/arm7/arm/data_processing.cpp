@@ -27,7 +27,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     if (op2_is_immediate) {
         const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
         const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
-        u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1);
+        const u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1, set_condition_codes);
 
         switch (op) {
             case 0x0:
@@ -102,9 +102,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
             u32 shifted_operand = 0;
             if (shift_type == ShiftType::RRX) {
-                shifted_operand = Shift_RRX(GetRegister(rm));
+                shifted_operand = Shift_RRX(GetRegister(rm), set_condition_codes);
             } else {
-                shifted_operand = Shift(GetRegister(rm), shift_type, shift_amount);
+                shifted_operand = Shift(GetRegister(rm), shift_type, shift_amount, set_condition_codes);
             }
 
             switch (op) {
@@ -167,7 +167,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
             const std::unsigned_integral auto rs = Common::GetBitRange<7, 4>(shift);
             const auto shift_type = ShiftType(Common::GetBitRange<2, 1>(shift));
 
-            u32 shifted_operand = Shift(GetRegister(rm), shift_type, GetRegister(rs));
+            const u32 shifted_operand = Shift(GetRegister(rm), shift_type, GetRegister(rs), set_condition_codes);
 
             switch (op) {
                 case 0x0:
@@ -235,16 +235,16 @@ void ARM7::ARM_MSR(const u32 opcode) {
         if constexpr (flag_bits_only) {
             if (destination_is_spsr) {
                 SetSPSR(GetSPSR() & ~0xFFFFFF00);
-                SetSPSR(GetSPSR() | (Shift_RotateRight(immediate, rotate_amount << 1) & 0xFFFFFF00));
+                SetSPSR(GetSPSR() | (Shift_RotateRight(immediate, rotate_amount << 1, false) & 0xFFFFFF00));
             } else {
                 cpsr.raw &= ~0xFFFFFF00;
-                cpsr.raw |= (Shift_RotateRight(immediate, rotate_amount << 1) & 0xFFFFFF00);
+                cpsr.raw |= (Shift_RotateRight(immediate, rotate_amount << 1, false) & 0xFFFFFF00);
             }
         } else {
             if (destination_is_spsr) {
-                SetSPSR(Shift_RotateRight(immediate, rotate_amount << 1));
+                SetSPSR(Shift_RotateRight(immediate, rotate_amount << 1, false));
             } else {
-                cpsr.raw = Shift_RotateRight(immediate, rotate_amount << 1);
+                cpsr.raw = Shift_RotateRight(immediate, rotate_amount << 1, false);
             }
         }
     } else {

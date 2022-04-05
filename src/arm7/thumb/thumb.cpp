@@ -28,7 +28,7 @@ void ARM7::Thumb_LSL(const u16 opcode) {
     const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
     const u32 source = GetRegister(rs);
 
-    SetRegister(rd, Shift(source, ShiftType::LSL, offset));
+    SetRegister(rd, Shift(source, ShiftType::LSL, offset, true));
 
     cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
@@ -44,7 +44,7 @@ void ARM7::Thumb_LSR(const u16 opcode) {
         offset = 32;
     }
 
-    SetRegister(rd, Shift(source, ShiftType::LSR, offset));
+    SetRegister(rd, Shift(source, ShiftType::LSR, offset, true));
 
     cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
@@ -60,7 +60,7 @@ void ARM7::Thumb_ASR(const u16 opcode) {
         offset = 32;
     }
 
-    SetRegister(rd, Shift(source, ShiftType::ASR, offset));
+    SetRegister(rd, Shift(source, ShiftType::ASR, offset, true));
 
     cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
@@ -127,13 +127,13 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             SetRegister(rd, GetRegister(rd) ^ GetRegister(rs));
             break;
         case 0x2: // LSL
-            SetRegister(rd, Shift(GetRegister(rd), ShiftType::LSL, GetRegister(rs)));
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::LSL, GetRegister(rs), true));
             break;
         case 0x3: // LSR
-            SetRegister(rd, Shift(GetRegister(rd), ShiftType::LSR, GetRegister(rs)));
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::LSR, GetRegister(rs), true));
             break;
         case 0x4: // ASR
-            SetRegister(rd, Shift(GetRegister(rd), ShiftType::ASR, GetRegister(rs)));
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::ASR, GetRegister(rs), true));
             break;
         case 0x5: // ADC
             SetRegister(rd, ADC(GetRegister(rd), GetRegister(rs), true));
@@ -142,7 +142,7 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             SetRegister(rd, SBC(GetRegister(rd), GetRegister(rs), true));
             break;
         case 0x7: // ROR
-            SetRegister(rd, Shift(GetRegister(rd), ShiftType::ROR, GetRegister(rs)));
+            SetRegister(rd, Shift(GetRegister(rd), ShiftType::ROR, GetRegister(rs), true));
             break;
         case 0x8: // TST
             TST(GetRegister(rd), GetRegister(rs));

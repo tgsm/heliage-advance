@@ -235,12 +235,12 @@ private:
         RRX,
     };
 
-    [[nodiscard]] u32 Shift(u64 operand_to_shift, ShiftType shift_type, u8 shift_amount);
-    [[nodiscard]] u32 Shift_LSL(u64 operand_to_shift, u8 shift_amount);
-    [[nodiscard]] u32 Shift_LSR(u64 operand_to_shift, u8 shift_amount);
-    [[nodiscard]] u32 Shift_ASR(u64 operand_to_shift, u8 shift_amount);
-    [[nodiscard]] u32 Shift_RotateRight(u32 operand_to_rotate, u8 rotate_amount);
-    [[nodiscard]] u32 Shift_RRX(u32 operand_to_rotate);
+    [[nodiscard]] u32 Shift(u64 operand_to_shift, ShiftType shift_type, u8 shift_amount, bool set_condition_codes);
+    [[nodiscard]] u32 Shift_LSL(u64 operand_to_shift, u8 shift_amount, bool set_condition_codes);
+    [[nodiscard]] u32 Shift_LSR(u64 operand_to_shift, u8 shift_amount, bool set_condition_codes);
+    [[nodiscard]] u32 Shift_ASR(u64 operand_to_shift, u8 shift_amount, bool set_condition_codes);
+    [[nodiscard]] u32 Shift_RotateRight(u32 operand_to_rotate, u8 rotate_amount, bool set_condition_codes);
+    [[nodiscard]] u32 Shift_RRX(u32 operand_to_rotate, bool set_condition_codes);
 
     [[nodiscard]] u32 ADC(u32 operand1, u32 operand2, bool change_flags);
     [[nodiscard]] u32 ADD(u32 operand1, u32 operand2, bool change_flags);

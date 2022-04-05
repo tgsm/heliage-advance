@@ -230,97 +230,103 @@ void ARM7::FillPipeline() {
     }
 }
 
-u32 ARM7::Shift(const u64 operand_to_shift, const ShiftType shift_type, const u8 shift_amount) {
+u32 ARM7::Shift(const u64 operand_to_shift, const ShiftType shift_type, const u8 shift_amount, const bool set_condition_codes) {
     if (!shift_amount) { // shift by 0 digits
         return operand_to_shift;
     }
 
     switch (shift_type) {
         case ShiftType::LSL:
-            return Shift_LSL(operand_to_shift, shift_amount);
+            return Shift_LSL(operand_to_shift, shift_amount, set_condition_codes);
         case ShiftType::LSR:
-            return Shift_LSR(operand_to_shift, shift_amount);
+            return Shift_LSR(operand_to_shift, shift_amount, set_condition_codes);
         case ShiftType::ASR:
-            return Shift_ASR(operand_to_shift, shift_amount);
+            return Shift_ASR(operand_to_shift, shift_amount, set_condition_codes);
         case ShiftType::ROR:
-            return Shift_RotateRight(operand_to_shift, shift_amount);
+            return Shift_RotateRight(operand_to_shift, shift_amount, set_condition_codes);
         default:
             UNREACHABLE();
     }
 }
 
-u32 ARM7::Shift_LSL(const u64 operand_to_shift, const u8 shift_amount) {
+u32 ARM7::Shift_LSL(const u64 operand_to_shift, const u8 shift_amount, const bool set_condition_codes) {
     if (shift_amount >= 32) {
-        if (shift_amount == 32) {
-            cpsr.flags.carry = operand_to_shift & 0b1;
-        } else {
-            cpsr.flags.carry = false;
+        if (set_condition_codes) {
+            if (shift_amount == 32) {
+                cpsr.flags.carry = Common::IsBitSet<0>(operand_to_shift);
+            } else {
+                cpsr.flags.carry = false;
+            }
         }
 
         return 0;
     }
 
-    cpsr.flags.carry = ((operand_to_shift >> (32 - shift_amount)) & 0b1);
+    if (set_condition_codes) {
+        cpsr.flags.carry = Common::IsBitSet<0>(operand_to_shift >> (32 - shift_amount));
+    }
+
     return operand_to_shift << shift_amount;
 }
 
-u32 ARM7::Shift_LSR(const u64 operand_to_shift, const u8 shift_amount) {
+u32 ARM7::Shift_LSR(const u64 operand_to_shift, const u8 shift_amount, const bool set_condition_codes) {
     if (shift_amount >= 32) {
-        if (shift_amount == 32) {
-            cpsr.flags.carry = operand_to_shift & (1 << 31);
-        } else {
-            cpsr.flags.carry = false;
+        if (set_condition_codes) {
+            if (shift_amount == 32) {
+                cpsr.flags.carry = Common::IsBitSet<31>(operand_to_shift);
+            } else {
+                cpsr.flags.carry = false;
+            }
         }
 
         return 0;
     }
 
-    cpsr.flags.carry = ((operand_to_shift >> (shift_amount - 1)) & 0b1);
+    if (set_condition_codes) {
+        cpsr.flags.carry = Common::IsBitSet<0>(operand_to_shift >> (shift_amount - 1));
+    }
+
     return operand_to_shift >> shift_amount;
 }
 
-u32 ARM7::Shift_ASR(const u64 operand_to_shift, const u8 shift_amount) {
-    bool msb = (operand_to_shift & (1 << 31));
+u32 ARM7::Shift_ASR(const u64 operand_to_shift, const u8 shift_amount, const bool set_condition_codes) {
+    u32 result = 0;
 
     if (shift_amount >= 32) {
-        if (shift_amount == 32) {
-            cpsr.flags.carry = operand_to_shift & (1 << 31);
-        } else {
-            cpsr.flags.carry = false;
+        result = u32(s32(operand_to_shift) >> 31);
+        if (set_condition_codes) {
+            cpsr.flags.carry = Common::IsBitSet<0>(result);
         }
-
-        return msb ? 0xFFFFFFFF : 0;
+    } else {
+        result = u32(s32(operand_to_shift) >> shift_amount);
+        if (set_condition_codes) {
+            cpsr.flags.carry = Common::IsBitSet<0>(operand_to_shift >> (shift_amount - 1));
+        }
     }
 
-    cpsr.flags.carry = ((operand_to_shift >> (shift_amount - 1)) & 0b1);
-
-    u32 result = operand_to_shift >> shift_amount;
-    for (u8 i = 31; i > 31 - shift_amount; i--) {
-        result |= (msb << i);
-    }
     return result;
 }
 
-u32 ARM7::Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount) {
+u32 ARM7::Shift_RotateRight(const u32 operand_to_rotate, const u8 rotate_amount, const bool set_condition_codes) {
     if (!rotate_amount) { // rotate by 0 digits
         return operand_to_rotate;
     }
 
-    // 32 is the number of bits in the number we are rotating
-    // const u8 r = rotate_amount % 32;
-    // return (operand_to_rotate >> rotate_amount) | (operand_to_rotate << (32 - r));
+    const u32 result = std::rotr(operand_to_rotate, rotate_amount);
 
-    u32 result = std::rotr(operand_to_rotate, rotate_amount);
-    cpsr.flags.carry = (result & (1 << 31));
+    if (set_condition_codes) {
+        cpsr.flags.carry = Common::IsBitSet<31>(result);
+    }
+
     return result;
 }
 
-u32 ARM7::Shift_RRX(const u32 operand_to_rotate) {
-    const bool bit0 = operand_to_rotate & 0b1;
+u32 ARM7::Shift_RRX(const u32 operand_to_rotate, const bool set_condition_codes) {
+    const u32 result = (operand_to_rotate >> 1) | (cpsr.flags.carry << 31);
 
-    u32 result = (operand_to_rotate >> 1) | (cpsr.flags.carry << 31);
-
-    cpsr.flags.carry = bit0;
+    if (set_condition_codes) {
+        cpsr.flags.carry = Common::IsBitSet<0>(operand_to_rotate);
+    }
 
     return result;
 }

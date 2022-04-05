@@ -361,7 +361,20 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
             auto shift_type = ShiftType(Common::GetBitRange<2, 1>(shift));
 
-            offset = Shift(GetRegister(rm), shift_type, shift_amount);
+            if (shift_amount == 0 && shift_type != ShiftType::LSL) {
+                if (shift_type == ShiftType::ROR) {
+                    shift_type = ShiftType::RRX;
+                } else {
+                    shift_amount = 32;
+                }
+            }
+
+            if (shift_type == ShiftType::RRX) {
+                offset = Shift_RRX(GetRegister(rm), false);
+            } else {
+                offset = Shift(GetRegister(rm), shift_type, shift_amount, false);
+            }
+
             if (!add_offset_to_base) {
                 offset = -offset;
             }
