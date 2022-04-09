@@ -5,7 +5,6 @@
 
 constexpr u32 TILE_WIDTH = 8;
 constexpr u32 TILE_HEIGHT = 8;
-constexpr u32 TILE_SIZE_IN_BYTES = 32;
 
 PPU::PPU(Bus& bus_, Interrupts& interrupts_)
     : bus(bus_), interrupts(interrupts_) {
@@ -93,22 +92,16 @@ void PPU::RenderScanline() {
 
     switch (dispcnt.flags.bg_mode) {
         case 0:
-            if (dispcnt.flags.screen_display0) {
-                RenderTiledBGScanline<0>();
+        case 1:
+            // Render the backdrop color before anything else.
+            for (std::size_t i = 0; i < GBA_SCREEN_WIDTH; i++) {
+                framebuffer.at(vcount * GBA_SCREEN_WIDTH + i) = ReadPRAM<u16>(0);
             }
 
-            if (dispcnt.flags.screen_display1) {
-                RenderTiledBGScanline<1>();
-            }
-
-            if (dispcnt.flags.screen_display2) {
-                RenderTiledBGScanline<2>();
-            }
-
-            if (dispcnt.flags.screen_display3) {
-                RenderTiledBGScanline<3>();
-            }
-
+            RenderTiledBGScanlineByPriority(3);
+            RenderTiledBGScanlineByPriority(2);
+            RenderTiledBGScanlineByPriority(1);
+            RenderTiledBGScanlineByPriority(0);
             break;
         case 3:
             for (std::size_t i = 0; i < GBA_SCREEN_WIDTH; i++) {
@@ -136,40 +129,86 @@ void PPU::RenderScanline() {
     }
 }
 
-template <u8 bg_no>
-void PPU::RenderTiledBGScanline() {
-    static_assert(bg_no < 4);
+bool PPU::IsBGScreenDisplayEnabled(const std::size_t bg_no) const {
+    switch (bg_no) {
+        case 0:
+            return dispcnt.flags.screen_display0;
+        case 1:
+            return dispcnt.flags.screen_display1;
+        case 2:
+            return dispcnt.flags.screen_display2;
+        case 3:
+            return dispcnt.flags.screen_display3;
+        default:
+            UNREACHABLE();
+    }
+}
 
-    const u32 tile_map_base = bgcnts[bg_no].flags.screen_base_block * 0x800;
+void PPU::RenderTiledBGScanlineByPriority(const std::size_t priority) {
+    for (std::size_t bg = 0; bg < bgs.size(); bg++) {
+        if (!IsBGScreenDisplayEnabled(bg)) {
+            continue;
+        }
 
-    for (std::size_t i = 0; i < GBA_SCREEN_WIDTH / TILE_WIDTH; i++) {
-        const u16 tile_index = ReadVRAM<u16>(tile_map_base + ((vcount / TILE_HEIGHT) * 64) + (i * sizeof(u16))) & 0x7FF;
-        const Tile& tile = ConstructTile<bg_no>(tile_index);
-
-        for (std::size_t tile_x = 0; tile_x < TILE_WIDTH; tile_x++) {
-            const std::size_t framebuffer_pixel_position = (vcount * GBA_SCREEN_WIDTH) + (i * TILE_WIDTH) + tile_x;
-            const std::size_t tile_y = vcount % 8;
-            framebuffer.at(framebuffer_pixel_position) = ReadPRAM<u16>(tile[tile_y][tile_x] * sizeof(u16));
+        if (bgs[bg].control.flags.bg_priority == priority) {
+            RenderTiledBGScanline(bg);
         }
     }
 }
 
-template <u8 bg_no>
-PPU::Tile PPU::ConstructTile(const u16 tile_index) {
-    static_assert(bg_no < 4);
+void PPU::RenderTiledBGScanline(const std::size_t bg_no) {
+    const u32 tile_map_base = bgs.at(bg_no).control.flags.screen_base_block * 0x800;
 
-    const u32 tile_data_base = bgcnts[bg_no].flags.character_base_block * 0x4000;
-    const u32 tile_base = tile_data_base + (tile_index * TILE_SIZE_IN_BYTES);
+    for (std::size_t i = 0; i < GBA_SCREEN_WIDTH / TILE_WIDTH; i++) {
+        const u16 tile_entry = ReadVRAM<u16>(tile_map_base + ((vcount / TILE_HEIGHT) * 64) + (i * sizeof(u16)));
+        const u16 tile_index = Common::GetBitRange<0, 9>(tile_entry);
+        const Tile& tile = ConstructTile(bg_no, tile_index);
 
-    Tile tile;
+        for (std::size_t tile_x = 0; tile_x < TILE_WIDTH; tile_x++) {
+            const std::size_t framebuffer_pixel_position = (vcount * GBA_SCREEN_WIDTH) + (i * TILE_WIDTH) + tile_x;
+            const std::size_t tile_y = vcount % TILE_HEIGHT;
 
-    std::array<u8, TILE_SIZE_IN_BYTES> tile_data;
-    std::copy(vram.data() + tile_base, vram.data() + tile_base + TILE_SIZE_IN_BYTES, tile_data.data());
+            const bool vertical_flip = Common::IsBitSet<11>(tile_entry);
+            const std::size_t real_tile_y = vertical_flip ? ((TILE_HEIGHT - 1) - tile_y) : tile_y;
 
-    for (std::size_t y = 0; y < 8; y++) {
-        for (std::size_t x = 0; x < 8; x += 2) {
-            tile[y][x + 0] = tile_data.at((y * 4) + (x / 2)) & 0xF;
-            tile[y][x + 1] = tile_data.at((y * 4) + (x / 2)) >> 4;
+            const bool horizontal_flip = Common::IsBitSet<10>(tile_entry);
+            const std::size_t real_tile_x = horizontal_flip ? ((TILE_WIDTH - 1) - tile_x) : tile_x;
+
+            // Color 0 is used for transparency.
+            if (tile[real_tile_y][real_tile_x] == 0) {
+                continue;
+            }
+
+            const u16 palette_index = Common::GetBitRange<12, 15>(tile_entry);
+            const auto pram_addr = ((palette_index << 4) | tile[real_tile_y][real_tile_x]) * sizeof(u16);
+            framebuffer.at(framebuffer_pixel_position) = ReadPRAM<u16>(pram_addr);
+        }
+    }
+}
+
+PPU::Tile PPU::ConstructTile(const std::size_t bg_no, const u16 tile_index) {
+    const u32 tile_data_base = bgs.at(bg_no).control.flags.character_base_block * 0x4000;
+    const std::size_t tile_size = bgs.at(bg_no).control.flags.use_256_colors ? 64 : 32;
+    const u32 tile_base = tile_data_base + (tile_index * tile_size);
+
+    Tile tile {};
+
+    std::vector<u8> tile_data(tile_size);
+    std::copy(vram.data() + tile_base, vram.data() + tile_base + tile_size, tile_data.data());
+
+    if (bgs.at(bg_no).control.flags.use_256_colors) {
+        for (std::size_t y = 0; y < TILE_HEIGHT; y++) {
+            for (std::size_t x = 0; x < TILE_WIDTH; x++) {
+                tile[y][x] = tile_data.at((y * TILE_WIDTH) + x);
+            }
+        }
+    } else {
+        for (std::size_t y = 0; y < TILE_HEIGHT; y++) {
+            for (std::size_t x = 0; x < TILE_WIDTH; x += 2) {
+                const auto tile_data_index = (y * (TILE_WIDTH / 2)) + (x / 2);
+                tile[y][x + 0] = tile_data.at(tile_data_index) & 0xF;
+                tile[y][x + 1] = tile_data.at(tile_data_index) >> 4;
+            }
         }
     }
 

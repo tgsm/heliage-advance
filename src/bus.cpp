@@ -172,6 +172,14 @@ u16 Bus::Read16(u32 addr) {
                     return ppu.GetDISPSTAT();
                 case 0x4000006:
                     return ppu.GetVCOUNT();
+                case 0x4000008:
+                    return ppu.GetBGCNT<0>();
+                case 0x400000A:
+                    return ppu.GetBGCNT<1>();
+                case 0x400000C:
+                    return ppu.GetBGCNT<2>();
+                case 0x400000E:
+                    return ppu.GetBGCNT<3>();
                 case 0x40000B8:
                     return 0;
                 case 0x40000BA:
@@ -267,6 +275,51 @@ void Bus::Write16(u32 addr, u16 value) {
                 case 0x400000C:
                     ppu.SetBGCNT<2>(value);
                     return;
+                case 0x400000E:
+                    ppu.SetBGCNT<3>(value);
+                    return;
+                case 0x4000010:
+                    ppu.SetBGXOffset<0>(value);
+                    return;
+                case 0x4000012:
+                    ppu.SetBGYOffset<0>(value);
+                    return;
+                case 0x4000014:
+                    ppu.SetBGXOffset<1>(value);
+                    return;
+                case 0x4000016:
+                    ppu.SetBGYOffset<1>(value);
+                    return;
+                case 0x4000018:
+                    ppu.SetBGXOffset<2>(value);
+                    return;
+                case 0x400001A:
+                    ppu.SetBGYOffset<2>(value);
+                    return;
+                case 0x400001C:
+                    ppu.SetBGXOffset<3>(value);
+                    return;
+                case 0x400001E:
+                    ppu.SetBGYOffset<3>(value);
+                    return;
+                case 0x40000B8:
+                    dma_channels[0].word_count = value;
+                    return;
+                case 0x40000BA:
+                    SetDMAControl<0>(value);
+                    return;
+                case 0x40000C4:
+                    dma_channels[1].word_count = value;
+                    return;
+                case 0x40000C6:
+                    SetDMAControl<1>(value);
+                    return;
+                case 0x40000D0:
+                    dma_channels[2].word_count = value;
+                    return;
+                case 0x40000D2:
+                    SetDMAControl<2>(value);
+                    return;
                 case 0x40000DC:
                     dma_channels[3].word_count = value;
                     return;
@@ -343,8 +396,13 @@ u32 Bus::Read32(u32 addr) {
 
         case 0x4:
             switch (masked_addr) {
+                case 0x4000000:
+                    // TODO: green swap
+                    return (0xFFFF << 16) | ppu.GetDISPCNT();
                 case 0x4000004:
                     return ppu.GetDISPSTAT();
+                case 0x40000DC:
+                    return (dma_channels[3].control.raw << 16) | 0xFFFF;
                 case 0x4000130:
                     return keypad.GetState();
                 case 0x4000200:
@@ -410,6 +468,10 @@ void Bus::Write32(u32 addr, u32 value) {
             switch (masked_addr) {
                 case 0x4000000:
                     ppu.SetDISPCNT(value);
+                    return;
+                case 0x4000008:
+                    ppu.SetBGCNT<0>(Common::GetBitRange<15, 0>(value));
+                    ppu.SetBGCNT<1>(Common::GetBitRange<31, 16>(value));
                     return;
                 case 0x40000B0:
                     dma_channels[0].source_address = value;

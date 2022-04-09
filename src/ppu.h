@@ -18,7 +18,7 @@ public:
     void AdvanceCycles(u8 cycles);
     void Tick();
 
-    u16 GetDISPCNT() const { return dispcnt.raw; }
+    [[nodiscard]] u16 GetDISPCNT() const { return dispcnt.raw; }
     void SetDISPCNT(u16 value) { dispcnt.raw = value; }
 
     [[nodiscard]] u16 GetDISPSTAT() const { return dispstat.raw; }
@@ -31,13 +31,41 @@ public:
     template <u8 bg_no>
     [[nodiscard]] u16 GetBGCNT() const {
         static_assert(bg_no < 4);
-        return bgcnts[bg_no].raw;
+        return bgs[bg_no].control.raw;
     }
 
     template <u8 bg_no>
     void SetBGCNT(const u16 value) {
         static_assert(bg_no < 4);
-        bgcnts[bg_no].raw = value;
+        bgs[bg_no].control.raw = value;
+
+        if constexpr (bg_no == 0 || bg_no == 1) {
+            bgs[bg_no].control.flags.display_area_overflow = false;
+        }
+    }
+
+    template <u8 bg_no>
+    [[nodiscard]] u16 GetBGXOffset() const {
+        static_assert(bg_no < 4);
+        return bgs[bg_no].x_offset;
+    }
+
+    template <u8 bg_no>
+    void SetBGXOffset(const u16 value) {
+        static_assert(bg_no < 4);
+        bgs[bg_no].x_offset = Common::GetBitRange<0, 9>(value);
+    }
+
+    template <u8 bg_no>
+    [[nodiscard]] u16 GetBGYOffset() const {
+        static_assert(bg_no < 4);
+        return bgs[bg_no].y_offset;
+    }
+
+    template <u8 bg_no>
+    void SetBGYOffset(const u16 value) {
+        static_assert(bg_no < 4);
+        bgs[bg_no].y_offset = Common::GetBitRange<0, 9>(value);
     }
 
     template <UnsignedIntegerMax32 T>
@@ -191,13 +219,14 @@ private:
 
     void RenderScanline();
 
-    template <u8 bg_no>
-    void RenderTiledBGScanline();
+    [[nodiscard]] bool IsBGScreenDisplayEnabled(std::size_t bg_no) const;
+    void RenderTiledBGScanlineByPriority(std::size_t priority);
+    void RenderTiledBGScanline(std::size_t bg_no);
 
     union {
         u16 raw = 0x0000;
         struct {
-            u8 bg_mode : 3;
+            u16 bg_mode : 3;
             bool cgb_mode : 1;
             bool display_frame_select : 1;
             bool hblank_interval_free : 1;
@@ -223,32 +252,36 @@ private:
             bool vblank_irq : 1;
             bool hblank_irq : 1;
             bool vcounter_irq : 1;
-            u8 : 2; // used in NDS/DSi, but not the GBA
-            u8 vcount_setting : 8; // aka LYC
+            u16 : 2; // used in NDS/DSi, but not the GBA
+            u16 vcount_setting : 8; // aka LYC
         } flags;
     } dispstat;
 
-    union BGCNT {
-        u16 raw;
-        struct {
-            u8 bg_priority : 2;
-            u8 character_base_block : 2;
-            u8 : 2;
-            bool mosaic : 1;
-            bool use_256_colors : 1;
-            u8 screen_base_block : 5;
-            bool display_area_overflow : 1;
-            u8 screen_size : 2;
-        } flags;
+    struct BG {
+        union {
+            u16 raw;
+            struct {
+                u16 bg_priority : 2;
+                u16 character_base_block : 2;
+                u16 : 2;
+                bool mosaic : 1;
+                bool use_256_colors : 1;
+                u16 screen_base_block : 5;
+                bool display_area_overflow : 1;
+                u16 screen_size : 2;
+            } flags;
+        } control;
+
+        u16 x_offset;
+        u16 y_offset;
     };
 
-    std::array<BGCNT, 4> bgcnts {};
+    std::array<BG, 4> bgs {};
 
     // Scanline counter, much like LY from the gameboy
     u8 vcount = 0;
 
     using Tile = std::array<std::array<u8, 8>, 8>;
 
-    template <u8 bg_no>
-    Tile ConstructTile(u16 tile_index);
+    Tile ConstructTile(std::size_t bg_no, u16 tile_index);
 };
