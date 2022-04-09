@@ -169,7 +169,7 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             SetRegister(rd, ~GetRegister(rs));
             break;
         default:
-            UNIMPLEMENTED_MSG("interpreter: unimplemented thumb alu op 0x{:X}", op);
+            UNREACHABLE();
     }
 
     cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
@@ -180,18 +180,10 @@ void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
     const std::unsigned_integral auto op = Common::GetBitRange<9, 8>(opcode);
     const bool h1 = Common::IsBitSet<7>(opcode);
     const bool h2 = Common::IsBitSet<6>(opcode);
-    std::unsigned_integral auto rs_hs = Common::GetBitRange<5, 3>(opcode);
-    std::unsigned_integral auto rd_hd = Common::GetBitRange<2, 0>(opcode);
+    const std::unsigned_integral auto rs_hs = Common::GetBitRange<5, 3>(opcode) + (h2 ? 8u : 0u);
+    const std::unsigned_integral auto rd_hd = Common::GetBitRange<2, 0>(opcode) + (h1 ? 8u : 0u);
 
     ASSERT(!(op == 0x3 && h1));
-
-    if (h1) {
-        rd_hd += 8;
-    }
-
-    if (h2) {
-        rs_hs += 8;
-    }
 
     switch (op) {
         case 0x0:
@@ -239,17 +231,30 @@ void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
     const std::unsigned_integral auto rb = Common::GetBitRange<5, 3>(opcode);
     const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
+    const u32 address = GetRegister(rb) + GetRegister(ro);
+    const bool address_is_word_aligned = ((address & 0b11) == 0);
+
     if (load_from_memory) {
         if (transfer_byte) {
-            SetRegister(rd, bus.Read8(GetRegister(rb) + GetRegister(ro)));
+            SetRegister(rd, bus.Read8(address));
         } else {
-            SetRegister(rd, bus.Read32(GetRegister(rb) + GetRegister(ro)));
+            if (address_is_word_aligned) {
+                SetRegister(rd, bus.Read32(address));
+            } else {
+                const u32 value = std::rotr(bus.Read32(address & ~0b11), (address & 0b11) * 8);
+                SetRegister(rd, value);
+            }
         }
     } else {
         if (transfer_byte) {
-            bus.Write8(GetRegister(rb) + GetRegister(ro), GetRegister(rd) & 0xFF);
+            bus.Write8(address, GetRegister(rd));
         } else {
-            bus.Write32(GetRegister(rb) + GetRegister(ro), GetRegister(rd));
+            if (address_is_word_aligned) {
+                bus.Write32(address, GetRegister(rd));
+            } else {
+                const u32 value = std::rotr(GetRegister(rd), (address & 0b11) * 8);
+                bus.Write32(address & ~0b11, value);
+            }
         }
     }
 }
@@ -263,27 +268,15 @@ void ARM7::Thumb_LoadStoreSignExtendedByteHalfword(const u16 opcode) {
 
     if (sign_extend) {
         if (h_flag) {
-            SetRegister(rd, bus.Read16(GetRegister(rb) + GetRegister(ro)));
-
-            // Set bits 31-16 of Rd to what's in bit 15.
-            if (!(GetRegister(rd) & (1 << 15))) {
-                return;
-            }
-
-            for (u8 i = 16; i <= 31; i++) {
-                SetRegister(rd, GetRegister(rd) | (1 << i));
-            }
+            s32 rd_se = bus.Read16(GetRegister(rb) + GetRegister(ro));
+            rd_se <<= 16;
+            rd_se >>= 16;
+            SetRegister(rd, rd_se);
         } else {
-            SetRegister(rd, bus.Read8(GetRegister(rb) + GetRegister(ro)));
-
-            // Set bits 31-8 of Rd to what's in bit 15.
-            if (!(GetRegister(rd) & (1 << 7))) {
-                return;
-            }
-
-            for (u8 i = 8; i <= 31; i++) {
-                SetRegister(rd, GetRegister(rd) | (1 << i));
-            }
+            s32 rd_se = bus.Read8(GetRegister(rb) + GetRegister(ro));
+            rd_se <<= 24;
+            rd_se >>= 24;
+            SetRegister(rd, rd_se);
         }
     } else {
         if (h_flag) {

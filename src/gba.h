@@ -5,6 +5,7 @@
 #include "bus.h"
 #include "cartridge.h"
 #include "keypad.h"
+#include "interrupts.h"
 #include "ppu.h"
 
 class GBA {

@@ -2,7 +2,7 @@
 #include "arm7/arm7.h"
 
 void ARM7::ARM_BranchAndExchange(const u32 opcode) {
-    const u8 rn = Common::GetBitRange<3, 0>(opcode);
+    const std::unsigned_integral auto rn = Common::GetBitRange<3, 0>(opcode);
 
     // If bit 0 of Rn is set, we switch to THUMB mode. Else, we switch to ARM mode.
     cpsr.flags.thumb_mode = Common::IsBitSet<0>(GetRegister(rn));

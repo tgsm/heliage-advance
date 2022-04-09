@@ -35,7 +35,10 @@ void ARM7::ARM_MultiplyLong(const u32 opcode) {
     const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
     if (sign) {
-        s64 result = static_cast<s64>(GetRegister(rm)) * static_cast<s64>(GetRegister(rs));
+        const s64 rm_se = (static_cast<s64>(GetRegister(rm)) << 32) >> 32;
+        const s64 rs_se = (static_cast<s64>(GetRegister(rs)) << 32) >> 32;
+
+        s64 result = rm_se * rs_se;
         if (accumulate) {
             result += ((static_cast<s64>(GetRegister(rdhi)) << 32) | GetRegister(rdlo));
         }
@@ -215,6 +218,8 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
     const std::unsigned_integral auto offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
+    bool address_is_halfword_aligned = ((address & 0b1) == 0b0);
+
     if (pre_indexing) {
         if (add_offset_to_base) {
             address += offset;
@@ -222,10 +227,19 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
             address -= offset;
         }
 
+        address_is_halfword_aligned = ((address & 0b1) == 0b0);
+
         if (sign) {
-            SetRegister(rd, static_cast<s16>(bus.Read16(address)));
+            s16 value = bus.Read16(address & ~0b1);
+
+            if (!address_is_halfword_aligned) {
+                value >>= 8;
+            }
+
+            SetRegister(rd, value);
         } else {
-            SetRegister(rd, bus.Read16(address));
+            const u32 value = std::rotr(u32(bus.Read16(address)), (address & 0b1) * 8);
+            SetRegister(rd, value);
         }
 
         if (write_back) {
@@ -233,9 +247,16 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
         }
     } else {
         if (sign) {
-            SetRegister(rd, static_cast<s16>(bus.Read16(address)));
+            s16 value = bus.Read16(address & ~0b1);
+
+            if (!address_is_halfword_aligned) {
+                value >>= 8;
+            }
+
+            SetRegister(rd, value);
         } else {
-            SetRegister(rd, bus.Read16(address));
+            const u32 value = std::rotr(u32(bus.Read16(address)), (address & 0b1) * 8);
+            SetRegister(rd, value);
         }
 
         if (add_offset_to_base) {
@@ -396,21 +417,19 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             address -= offset;
         }
 
-        if constexpr (!transfer_byte) {
-            address &= ~0x3; // Word align
-        }
-
         if constexpr (load_from_memory) {
             if constexpr (transfer_byte) {
                 SetRegister(rd, bus.Read8(address));
             } else {
-                SetRegister(rd, bus.Read32(address));
+                const u32 value = std::rotr(bus.Read32(address & ~0b11), (address & 0b11) * 8);
+                SetRegister(rd, value);
             }
         } else {
             if constexpr (transfer_byte) {
-                bus.Write8(address, GetRegister(rd) & 0xFF);
+                bus.Write8(address, GetRegister(rd));
             } else {
-                bus.Write32(address, GetRegister(rd));
+                const u32 value = std::rotr(GetRegister(rd), (address & 0b11) * 8);
+                bus.Write32(address & ~0b11, value);
             }
         }
 
@@ -418,21 +437,22 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             SetRegister(rn, address);
         }
     } else {
-        if constexpr (!transfer_byte) {
-            address &= ~0x3; // Word align
-        }
-
         if constexpr (load_from_memory) {
             if constexpr (transfer_byte) {
                 SetRegister(rd, bus.Read8(address));
             } else {
-                SetRegister(rd, bus.Read32(address));
+                const u32 value = std::rotr(bus.Read32(address & ~0b11), (address & 0b11) * 8);
+                SetRegister(rd, value);
             }
         } else {
             if constexpr (transfer_byte) {
-                bus.Write8(address, GetRegister(rd) & 0xFF);
+                bus.Write8(address, GetRegister(rd));
             } else {
-                bus.Write32(address, GetRegister(rd));
+                if ((address & 0b11) == 0) {
+                    bus.Write32(address, GetRegister(rd));
+                } else {
+                    UNIMPLEMENTED_MSG("Unimplemented arm write32 to unaligned address");
+                }
             }
         }
 
@@ -471,6 +491,8 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     if (set_bits.empty()) {
         return;
     }
+
+    const bool rn_is_in_rlist = std::find(set_bits.begin(), set_bits.end(), rn) != set_bits.end();
 
     u32 address = GetRegister(rn);
     if (load_from_memory) {
@@ -520,6 +542,10 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     }
 
     if (write_back) {
+        if (load_from_memory && rn_is_in_rlist) {
+            return;
+        }
+
         SetRegister(rn, address);
     }
 }

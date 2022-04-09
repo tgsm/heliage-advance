@@ -86,7 +86,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 SetRegister(rd, ~rotated_operand);
                 break;
             default:
-                UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ immediate", op);
+                UNREACHABLE();
         }
 
         // FIXME: this doesn't seem right.
@@ -169,7 +169,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     SetRegister(rd, ~shifted_operand);
                     break;
                 default:
-                    UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register", op);
+                    UNREACHABLE();
             }
         } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
             // If a register is used to specify the shift amount the PC will be 12 bytes ahead.

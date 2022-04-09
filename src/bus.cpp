@@ -172,6 +172,22 @@ u16 Bus::Read16(u32 addr) {
                     return ppu.GetDISPSTAT();
                 case 0x4000006:
                     return ppu.GetVCOUNT();
+                case 0x40000B8:
+                    return 0;
+                case 0x40000BA:
+                    return dma_channels[0].control.raw;
+                case 0x40000C4:
+                    return 0;
+                case 0x40000C6:
+                    return dma_channels[1].control.raw;
+                case 0x40000D0:
+                    return 0;
+                case 0x40000D2:
+                    return dma_channels[2].control.raw;
+                case 0x40000DC:
+                    return 0;
+                case 0x40000DE:
+                    return dma_channels[3].control.raw;
                 case 0x4000130:
                     return keypad.GetState();
                 case 0x4000200:
@@ -481,7 +497,14 @@ void Bus::SetDMAControl(const u16 value) {
     static_assert(dma_channel_no < 4);
     DMAChannel& channel = dma_channels[dma_channel_no];
 
-    channel.control.raw = value;
+    // Bits 4-0 are unused.
+    channel.control.raw = value & ~Common::GetBitMaskFromRange<4, 0, u16>();
+
+    if constexpr (dma_channel_no != 3) {
+        // Bit 11 is only available on DMA 3.
+        channel.control.flags.gamepak_dma3_drq = false;
+    }
+
     if (channel.control.flags.enable) {
         RunDMATransfer<dma_channel_no>();
     }

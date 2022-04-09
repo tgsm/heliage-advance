@@ -65,6 +65,7 @@ public:
     void WriteVRAM(u32 addr, T value) {
         if constexpr (std::is_same_v<T, u8>) {
             vram.at(addr) = value;
+            vram.at(addr + 1) = value;
         }
 
         if constexpr (std::is_same_v<T, u16>) {
@@ -107,6 +108,7 @@ public:
     void WritePRAM(u32 addr, T value) {
         if constexpr (std::is_same_v<T, u8>) {
             pram.at(addr) = value;
+            pram.at(addr + 1) = value;
         }
 
         if constexpr (std::is_same_v<T, u16>) {
