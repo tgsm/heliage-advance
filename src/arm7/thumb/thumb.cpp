@@ -148,8 +148,8 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
             TST(GetRegister(rd), GetRegister(rs));
             return;
         case 0x9: // NEG
-            SetRegister(rd, -GetRegister(rs));
-            break;
+            SetRegister(rd, SUB(0, GetRegister(rs), true));
+            return;
         case 0xA: // CMP
             CMP(GetRegister(rd), GetRegister(rs));
             return;
