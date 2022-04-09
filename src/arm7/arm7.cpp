@@ -15,7 +15,56 @@ ARM7::ARM7(Bus& bus_, PPU& ppu_)
     SetPC(0x08000000);
 }
 
+void ARM7::HandleInterrupts() {
+    if (cpsr.flags.irq_disabled) {
+        return;
+    }
+
+    if (!bus.GetInterrupts().GetIME()) {
+        return;
+    }
+
+    const u16 ie_reg = bus.GetInterrupts().GetIE();
+    const u16 if_reg = bus.GetInterrupts().GetIF();
+    if ((if_reg & ie_reg) == 0) {
+        return;
+    }
+
+    halted = false;
+
+    if (!started_ime_delay) {
+        started_ime_delay = true;
+        return;
+    }
+
+    if (ime_delay) {
+        ime_delay--;
+        return;
+    }
+
+    // FIXME: this doesn't seem right.
+    const u32 lr = GetPC() + (cpsr.flags.thumb_mode ? 2 : 0); // - (cpsr.flags.thumb_mode ? 2 : 4);
+    const u32 old_cpsr = cpsr.raw;
+
+    cpsr.flags.processor_mode = ProcessorMode::IRQ;
+    SetLR(lr);
+    cpsr.flags.thumb_mode = false;
+    cpsr.flags.irq_disabled = true;
+    SetPC(0x00000018);
+    SetSPSR(old_cpsr);
+
+    started_ime_delay = false;
+    ime_delay = 2;
+}
+
 void ARM7::Step(bool dump_registers) {
+    HandleInterrupts();
+
+    if (halted) {
+        ppu.AdvanceCycles(1);
+        return;
+    }
+
     // FIXME: put the pipeline stuff in its own function
     if (cpsr.flags.thumb_mode) {
         const u16 opcode = pipeline[0];

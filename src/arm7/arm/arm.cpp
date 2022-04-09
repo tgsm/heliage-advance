@@ -259,7 +259,7 @@ void ARM7::ARM_StoreHalfwordImmediate(const u32 opcode, const bool sign) {
     const u8 offset = (offset_high << 4) | offset_low;
 
     u32 address = GetRegister(rn);
-    u16 value = GetRegister(rd) & 0xFFFF;
+    const u16 value = GetRegister(rd);
     if (pre_indexing) {
         if (add_offset_to_base) {
             address += offset;
@@ -352,7 +352,8 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
     const bool write_back = Common::IsBitSet<21>(opcode);
     const std::unsigned_integral auto rn = Common::GetBitRange<19, 16>(opcode);
     const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
-    s16 offset = 0;
+    s32 offset = 0;
+
     if (offset_is_register) {
         const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(opcode);
         const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);

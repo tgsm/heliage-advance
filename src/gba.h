@@ -13,8 +13,9 @@ public:
 
     void Run();
 private:
+    PPU ppu;
     Bus bus;
     ARM7 arm7;
-    PPU ppu;
     Keypad keypad;
+    Interrupts interrupts;
 };

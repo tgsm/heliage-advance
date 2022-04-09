@@ -7,8 +7,8 @@ constexpr u32 TILE_WIDTH = 8;
 constexpr u32 TILE_HEIGHT = 8;
 constexpr u32 TILE_SIZE_IN_BYTES = 32;
 
-PPU::PPU(Bus& bus_)
-    : bus(bus_) {
+PPU::PPU(Bus& bus_, Interrupts& interrupts_)
+    : bus(bus_), interrupts(interrupts_) {
     StartNewScanline();
 }
 
@@ -44,6 +44,9 @@ void PPU::StartNewScanline() {
 
 void PPU::StartHBlank() {
     dispstat.flags.hblank = true;
+    if (dispstat.flags.hblank_irq) {
+        interrupts.RequestInterrupt(Interrupts::Bits::HBlank);
+    }
     ScheduleNewFunction(272, [this]() { EndHBlank(); });
 }
 
@@ -52,16 +55,24 @@ void PPU::EndHBlank() {
     RenderScanline();
     vcount++;
 
+    if (vcount == dispstat.flags.vcount_setting && dispstat.flags.vcounter_irq) {
+        interrupts.RequestInterrupt(Interrupts::Bits::VCounterMatch);
+    }
+
     if (vcount >= 228) {
         vcount = 0;
         dispstat.flags.vblank = false;
         StartNewScanline();
     } else if (vcount == 160) {
+        if (dispstat.flags.vblank_irq) {
+            interrupts.RequestInterrupt(Interrupts::Bits::VBlank);
+        }
+
         dispstat.flags.vblank = true;
         StartVBlankLine();
 
         DisplayFramebuffer(framebuffer);
-        framebuffer.fill(0x0000);
+        framebuffer = {};
 
         HandleFrontendEvents(&bus.GetKeypad());
     } else if (vcount >= 160) {

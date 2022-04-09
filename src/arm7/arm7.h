@@ -12,6 +12,10 @@ public:
 
     [[nodiscard]] inline u32 GetPC() const { return GetRegister(15); }
 
+    [[nodiscard]] inline u32 GetCPSR() const { return cpsr.raw; }
+
+    bool halted = false;
+
 private:
     [[nodiscard]] inline u32 GetSP() const { return GetRegister(13); }
     inline void SetSP(u32 value) { SetRegister(13, value); }
@@ -139,6 +143,8 @@ private:
                 return spsr_svc.raw;
             case ProcessorMode::FIQ:
                 return spsr_fiq.raw;
+            case ProcessorMode::IRQ:
+                return spsr_irq.raw;
             default:
                 UNIMPLEMENTED_MSG("unimplemented get spsr from mode {:05b}", cpsr.flags.processor_mode);
         }
@@ -154,6 +160,9 @@ private:
                 break;
             case ProcessorMode::FIQ:
                 spsr_fiq.raw = cpsr_raw;
+                break;
+            case ProcessorMode::IRQ:
+                spsr_irq.raw = cpsr_raw;
                 break;
             default:
                 UNIMPLEMENTED_MSG("unimplemented set spsr for mode {:05b}", cpsr.flags.processor_mode);
@@ -215,6 +224,10 @@ private:
         Undefined = 0b11011,
         System = 0b11111,
     };
+
+    void HandleInterrupts();
+    bool started_ime_delay = false;
+    u32 ime_delay = 2;
 
     [[nodiscard]] ARM_Instructions DecodeARMInstruction(u32 opcode) const;
     void ExecuteARMInstruction(ARM_Instructions instr, u32 opcode);

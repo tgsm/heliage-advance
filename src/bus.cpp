@@ -1,9 +1,10 @@
+#include "arm7/arm7.h"
 #include "bus.h"
 #include "common/bits.h"
 #include "common/logging.h"
 
-Bus::Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_)
-    : bios(bios_), cartridge(cartridge_), keypad(keypad_), ppu(ppu_) {
+Bus::Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_, Interrupts& interrupts_, ARM7& arm7_)
+    : bios(bios_), cartridge(cartridge_), keypad(keypad_), ppu(ppu_), interrupts(interrupts_), arm7(arm7_) {
 }
 
 u8 Bus::Read8(u32 addr) {
@@ -28,12 +29,17 @@ u8 Bus::Read8(u32 addr) {
             switch (masked_addr) {
                 case 0x4000006:
                     return ppu.GetVCOUNT();
+                case 0x4000300:
+                    return post_flg;
                 default:
                     LERROR("unrecognized read8 from IO register 0x{:08X}", masked_addr);
                     return 0xFF;
             }
 
             return 0xFF;
+
+        case 0x5:
+            return ppu.ReadPRAM<u8>(masked_addr & 0x3FF);
 
         case 0x6: {
             u32 address = masked_addr & 0x1FFFF;
@@ -50,6 +56,7 @@ u8 Bus::Read8(u32 addr) {
             return ppu.ReadOAM<u8>(masked_addr & 0x3FF);
 
         case 0x8:
+        case 0x9:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
                 // TODO: open bus?
                 return 0;
@@ -73,6 +80,39 @@ void Bus::Write8(u32 addr, u8 value) {
         case 0x3:
             LDEBUG("write8 0x{:02X} to 0x{:08X} (WRAM on-chip)", value, masked_addr);
             wram_onchip[masked_addr & 0x7FFF] = value;
+            return;
+
+        case 0x4:
+            switch (masked_addr) {
+                case 0x4000000:
+                    ppu.SetDISPCNT((ppu.GetDISPCNT() & 0xFF00) | value);
+                    return;
+                case 0x4000001:
+                    ppu.SetDISPCNT((ppu.GetDISPCNT() & 0x00FF) | (value << 8));
+                    return;
+                case 0x4000008:
+                    ppu.SetBGCNT<0>((ppu.GetBGCNT<0>() & ~0xFF) | value);
+                    return;
+                case 0x4000208:
+                    interrupts.SetIME(Common::IsBitSet<0>(value));
+                    return;
+                case 0x4000300:
+                    post_flg = Common::IsBitSet<0>(value);
+                    return;
+                case 0x4000301:
+                    if (!Common::IsBitSet<7>(value)) {
+                        arm7.halted = true;
+                    } else {
+                        // TODO: Stop mode
+                    }
+                    return;
+                default:
+                    LERROR("unrecognized write8 0x{:02X} to IO register 0x{:08X}", value, masked_addr);
+                    return;
+            }
+
+        case 0x5:
+            ppu.WritePRAM<u8>(masked_addr & 0x3FF, value);
             return;
 
         case 0x6: {
@@ -134,10 +174,19 @@ u16 Bus::Read16(u32 addr) {
                     return ppu.GetVCOUNT();
                 case 0x4000130:
                     return keypad.GetState();
+                case 0x4000200:
+                    return interrupts.GetIE();
+                case 0x4000202:
+                    return interrupts.GetIF();
+                case 0x4000208:
+                    return interrupts.GetIME();
                 default:
                     LERROR("unrecognized read16 from IO register 0x{:08X}", masked_addr);
                     return 0xFFFF;
             }
+
+        case 0x5:
+            return ppu.ReadPRAM<u16>(masked_addr & 0x3FF);
 
         case 0x6: {
             u32 address = masked_addr & 0x1FFFF;
@@ -208,6 +257,15 @@ void Bus::Write16(u32 addr, u16 value) {
                 case 0x40000DE:
                     SetDMAControl<3>(value);
                     return;
+                case 0x4000200:
+                    interrupts.SetIE(value);
+                    return;
+                case 0x4000202:
+                    interrupts.SetIF(value);
+                    return;
+                case 0x4000208:
+                    interrupts.SetIME(Common::IsBitSet<0>(value));
+                    return;
                 default:
                     LERROR("unrecognized write16 0x{:04X} to IO register 0x{:08X}", value, masked_addr);
                     return;
@@ -215,10 +273,7 @@ void Bus::Write16(u32 addr, u16 value) {
 
         case 0x5:
             LDEBUG("write16 0x{:04X} to 0x{:08X} (PRAM)", value, masked_addr);
-            for (size_t i = 0; i < 2; i++) {
-                // Mask off the last bit to keep halfword alignment.
-                ppu.WritePRAM<u8>(((masked_addr & ~0b1) & 0x3FF) + i, (value >> (8 * i)) & 0xFF);
-            }
+            ppu.WritePRAM<u16>(masked_addr & 0x3FF, value);
             return;
 
         case 0x6: {
@@ -276,10 +331,17 @@ u32 Bus::Read32(u32 addr) {
                     return ppu.GetDISPSTAT();
                 case 0x4000130:
                     return keypad.GetState();
+                case 0x4000200:
+                    return interrupts.GetIE() | (interrupts.GetIF() << 16);
+                case 0x4000208:
+                    return interrupts.GetIME();
                 default:
                     LERROR("unrecognized read32 from IO register 0x{:08X}", masked_addr);
                     return 0xFFFFFFFF;
             }
+
+        case 0x5:
+            return ppu.ReadPRAM<u32>(masked_addr & 0x3FF);
 
         case 0x6: {
             u32 address = masked_addr & 0x1FFFF;
@@ -296,6 +358,7 @@ u32 Bus::Read32(u32 addr) {
             return ppu.ReadOAM<u32>(masked_addr & 0x3FF);
 
         case 0x8:
+        case 0x9:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
                 // TODO: open bus?
                 return 0;
@@ -372,6 +435,13 @@ void Bus::Write32(u32 addr, u32 value) {
                     dma_channels[3].word_count = Common::GetBitRange<15, 0>(value);
                     SetDMAControl<3>(Common::GetBitRange<31, 16>(value));
                     return;
+                case 0x4000200:
+                    interrupts.SetIE(Common::GetBitRange<15, 0>(value));
+                    interrupts.SetIF(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x4000208:
+                    interrupts.SetIME(Common::IsBitSet<0>(value));
+                    return;
                 default:
                     LERROR("unrecognized write32 0x{:08X} to IO register 0x{:08X}", value, masked_addr);
                     return;
@@ -440,5 +510,26 @@ void Bus::RunDMATransfer() {
         }
     }
 
-    // channel.control.flags.enable = false;
+    if (channel.control.flags.irq_at_end_of_word_count) {
+        switch (dma_channel_no) {
+            case 0:
+                interrupts.RequestInterrupt(Interrupts::Bits::DMA0);
+                break;
+            case 1:
+                interrupts.RequestInterrupt(Interrupts::Bits::DMA1);
+                break;
+            case 2:
+                interrupts.RequestInterrupt(Interrupts::Bits::DMA2);
+                break;
+            case 3:
+                interrupts.RequestInterrupt(Interrupts::Bits::DMA3);
+                break;
+            default:
+                UNREACHABLE();
+        }
+    }
+
+    if (!channel.control.flags.repeat) {
+        channel.control.flags.enable = false;
+    }
 }

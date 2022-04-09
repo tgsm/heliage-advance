@@ -4,12 +4,15 @@
 #include "common/types.h"
 #include "bios.h"
 #include "cartridge.h"
+#include "interrupts.h"
 #include "keypad.h"
 #include "ppu.h"
 
+class ARM7;
+
 class Bus {
 public:
-    Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_);
+    Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_, Interrupts& interrupts_, ARM7& arm7_);
 
     [[nodiscard]] u8 Read8(u32 addr);
     void Write8(u32 addr, u8 value);
@@ -20,11 +23,17 @@ public:
 
     [[nodiscard]] Keypad& GetKeypad() { return keypad; }
     [[nodiscard]] const Keypad& GetKeypad() const { return keypad; }
+
+    [[nodiscard]] Interrupts& GetInterrupts() { return interrupts; }
+    [[nodiscard]] const Interrupts& GetInterrupts() const { return interrupts; }
+    
 private:
     BIOS& bios;
     Cartridge& cartridge;
     Keypad& keypad;
     PPU& ppu;
+    Interrupts& interrupts;
+    ARM7& arm7;
 
     std::array<u8, 0x40000> wram_onboard {};
     std::array<u8, 0x8000> wram_onchip {};
@@ -58,4 +67,6 @@ private:
 
     template <u8 dma_channel_no>
     void RunDMATransfer();
+
+    bool post_flg = false;
 };

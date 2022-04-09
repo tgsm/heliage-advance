@@ -2,7 +2,7 @@
 #include "common/logging.h"
 
 GBA::GBA(BIOS& bios, Cartridge& cartridge)
-    : bus(bios, cartridge, keypad, ppu), arm7(bus, ppu), ppu(bus) {
+    : ppu(bus, interrupts), bus(bios, cartridge, keypad, ppu, interrupts, arm7), arm7(bus, ppu) {
     LINFO("powering on...");
 }
 

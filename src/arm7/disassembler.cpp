@@ -247,10 +247,10 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                 disasm += fmt::format("#0x{:08X}", rotated_operand);
             } else {
                 const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(op2);
+                const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(op2);
                 if (!Common::IsBitSet<0>(shift)) {
                     const std::unsigned_integral auto shift_amount = Common::GetBitRange<7, 3>(shift);
                     const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
-                    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(op2);
 
                     if (!shift_amount) {
                         disasm += GetRegAsStr(rm);
@@ -262,8 +262,16 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
 
                         disasm += fmt::format(" #{}", shift_amount);
                     }
-                } else if ((shift & 0b1001) == 0b0001) {
-                    UNIMPLEMENTED();
+                } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
+                    const std::unsigned_integral auto rs = Common::GetBitRange<7, 4>(shift);
+                    const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
+
+                    disasm += fmt::format("{}, ", GetRegAsStr(rm));
+
+                    constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
+                    disasm += std::string(shift_types[shift_type]);
+
+                    disasm += fmt::format(" {}", GetRegAsStr(rs));
                 } else {
                     ASSERT(false);
                 }
@@ -310,7 +318,16 @@ void ARM7::ARM_DisassembleDataProcessing(const u32 opcode) {
                         disasm += fmt::format(" #{}", shift_amount);
                     }
                 } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
-                    UNIMPLEMENTED();
+                    const std::unsigned_integral auto rs = Common::GetBitRange<7, 4>(shift);
+                    const std::unsigned_integral auto shift_type = Common::GetBitRange<2, 1>(shift);
+                    const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(op2);
+
+                    disasm += fmt::format("{}, ", GetRegAsStr(rm));
+
+                    constexpr std::array<const char*, 4> shift_types = { "LSL", "LSR", "ASR", "ROR" };
+                    disasm += std::string(shift_types[shift_type]);
+
+                    disasm += fmt::format(" {}", GetRegAsStr(rs));
                 } else {
                     ASSERT(false);
                 }

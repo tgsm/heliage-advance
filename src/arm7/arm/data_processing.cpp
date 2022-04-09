@@ -38,6 +38,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 break;
             case 0x2:
                 SetRegister(rd, SUB(GetRegister(rn), rotated_operand, set_condition_codes));
+                if (set_condition_codes && rd == 15) {
+                    cpsr.raw = GetSPSR();
+                }
                 break;
             case 0x3:
                 SetRegister(rd, SUB(rotated_operand, GetRegister(rn), set_condition_codes));
@@ -84,6 +87,11 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 break;
             default:
                 UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ immediate", op);
+        }
+
+        // FIXME: this doesn't seem right.
+        if (rd == 15 && cpsr.flags.thumb_mode) {
+            SetPC(GetPC() - 4);
         }
     } else {
         const std::unsigned_integral auto shift = Common::GetBitRange<11, 4>(op2);
@@ -163,15 +171,26 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 default:
                     UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register", op);
             }
-        } else if ((shift & 0b1001) == 0b0001) {
+        } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
+            // If a register is used to specify the shift amount the PC will be 12 bytes ahead.
+            gpr[15] += 4;
+
             const std::unsigned_integral auto rs = Common::GetBitRange<7, 4>(shift);
             const auto shift_type = ShiftType(Common::GetBitRange<2, 1>(shift));
 
             const u32 shifted_operand = Shift(GetRegister(rm), shift_type, GetRegister(rs), set_condition_codes);
 
+            gpr[15] -= 4;
+
             switch (op) {
                 case 0x0:
                     SetRegister(rd, GetRegister(rn) | shifted_operand);
+                    break;
+                case 0x2:
+                    SetRegister(rd, SUB(GetRegister(rn), shifted_operand, set_condition_codes));
+                    break;
+                case 0x3:
+                    SetRegister(rd, SUB(shifted_operand, GetRegister(rn), set_condition_codes));
                     break;
                 case 0x4:
                     SetRegister(rd, ADD(GetRegister(rn), shifted_operand, set_condition_codes));
@@ -179,6 +198,9 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 case 0x5:
                     SetRegister(rd, ADC(GetRegister(rn), shifted_operand, set_condition_codes));
                     break;
+                case 0x9:
+                    TEQ(GetRegister(rn), shifted_operand);
+                    return;
                 case 0xC:
                     SetRegister(rd, GetRegister(rn) | shifted_operand);
                     break;
@@ -189,6 +211,12 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
                     SetRegister(rd, shifted_operand);
                     break;
+                case 0xE:
+                    SetRegister(rd, GetRegister(rn) & ~shifted_operand);
+                    break;
+                case 0xF:
+                    SetRegister(rd, ~shifted_operand);
+                    break;
                 default:
                     UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register and barrel shifter", op);
             }
@@ -197,7 +225,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
         }
     }
 
-    if (set_condition_codes) {
+    if (set_condition_codes && rd != 15) {
         cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
         cpsr.flags.zero = (GetRegister(rd) == 0);
     }
@@ -218,7 +246,7 @@ void ARM7::ARM_MRS(const u32 opcode) {
     if (source_is_spsr) {
         SetRegister(rd, GetSPSR());
     } else {
-        SetRegister(rd, cpsr.raw);
+        SetRegister(rd, GetCPSR());
     }
 }
 

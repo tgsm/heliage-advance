@@ -9,10 +9,11 @@ constexpr u32 GBA_SCREEN_WIDTH = 240;
 constexpr u32 GBA_SCREEN_HEIGHT = 160;
 
 class Bus;
+class Interrupts;
 
 class PPU {
 public:
-    explicit PPU(Bus& bus_);
+    PPU(Bus& bus_, Interrupts& interrupts_);
 
     void AdvanceCycles(u8 cycles);
     void Tick();
@@ -172,6 +173,7 @@ private:
     std::array<u16, GBA_SCREEN_WIDTH * GBA_SCREEN_HEIGHT> framebuffer {};
 
     Bus& bus;
+    Interrupts& interrupts;
 
     u64 vcycles = 0;
 
@@ -184,6 +186,7 @@ private:
     void StartHBlank();
     void EndHBlank();
     void StartVBlankLine();
+
     void RenderScanline();
 
     template <u8 bg_no>

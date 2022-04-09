@@ -61,14 +61,6 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
 void ARM7::Thumb_SoftwareInterrupt([[maybe_unused]] const u16 opcode) {
     LDEBUG("Thumb-mode SWI at {:08X}", GetPC() - 4);
 
-    if ((opcode & 0xFF) == 0x05) {
-        while (!ppu.GetDISPCNT() & 0b1) {
-            ppu.AdvanceCycles(1);
-        }
-
-        return;
-    }
-
     const u32 lr = GetPC() - 2;
     const u32 old_cpsr = cpsr.raw;
 
@@ -93,7 +85,7 @@ void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
 void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
     const u16 next_opcode = bus.Read16(GetPC() - 2);
     s16 offset = Common::GetBitRange<10, 0>(opcode);
-    const auto next_offset = Common::GetBitRange<10, 0>(next_opcode);
+    const std::unsigned_integral auto next_offset = Common::GetBitRange<10, 0>(next_opcode);
 
     u32 pc = GetPC();
 
