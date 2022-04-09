@@ -29,6 +29,8 @@ void HandleFrontendEvents(Keypad* keypad) {
                 KEYDOWN(SDLK_s, B);
                 KEYDOWN(SDLK_BACKSPACE, Select);
                 KEYDOWN(SDLK_RETURN, Start);
+                KEYDOWN(SDLK_i, L);
+                KEYDOWN(SDLK_p, R);
 #undef KEYDOWN
                 break;
             case SDL_KEYUP:
@@ -41,6 +43,8 @@ void HandleFrontendEvents(Keypad* keypad) {
                 KEYUP(SDLK_s, B);
                 KEYUP(SDLK_BACKSPACE, Select);
                 KEYUP(SDLK_RETURN, Start);
+                KEYUP(SDLK_i, L);
+                KEYUP(SDLK_p, R);
 #undef KEYUP
                 break;
             case SDL_QUIT:
