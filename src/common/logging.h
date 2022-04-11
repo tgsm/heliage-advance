@@ -20,10 +20,12 @@
     abort(); \
 
 #define UNIMPLEMENTED_MSG(format, ...) \
-    constexpr std::source_location sl = std::source_location::current(); \
-    LFATAL("unimplemented code at {}:{}", sl.file_name(), sl.line()); \
-    LFATAL(format, ##__VA_ARGS__); \
-    abort(); \
+    do { \
+        constexpr std::source_location sl = std::source_location::current(); \
+        LFATAL("unimplemented code at {}:{}", sl.file_name(), sl.line()); \
+        LFATAL(format, ##__VA_ARGS__); \
+        abort(); \
+    } while (0)
 
 #define UNREACHABLE() \
     constexpr std::source_location sl = std::source_location::current(); \

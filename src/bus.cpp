@@ -583,15 +583,60 @@ void Bus::RunDMATransfer() {
                                                                                         channel.destination_address,
                                                                                         channel.word_count);
 
+    s8 destination_offset = 0;
+    s8 source_offset = 0;
+
+    switch (channel.control.flags.dest_addr_control) {
+        case 0:
+        case 3:
+            destination_offset = 1;
+            break;
+        case 1:
+            destination_offset = -1;
+            break;
+        case 2:
+            destination_offset = 0;
+            break;
+        // case 3:
+        //     UNIMPLEMENTED_MSG("Unimplemented DMA{} dest addr control {}", dma_channel_no, channel.control.flags.dest_addr_control);
+        default:
+            UNREACHABLE();
+    }
+
+
+    switch (channel.control.flags.src_addr_control) {
+        case 0:
+            source_offset = 1;
+            break;
+        case 1:
+            source_offset = -1;
+            break;
+        case 2:
+            source_offset = 0;
+            break;
+        case 3:
+            UNIMPLEMENTED_MSG("Unimplemented DMA{} src addr control {}", dma_channel_no, channel.control.flags.src_addr_control);
+            break;
+        default:
+            UNREACHABLE();
+    }
+
+    u32 destination_address = channel.destination_address;
+    u32 source_address = channel.source_address;
+
     if (transfer_32bit) {
         for (std::size_t i = 0; i < channel.word_count; i++) {
-            const u32 offset = i * sizeof(u32);
-            Write32(channel.destination_address + offset, Read32(channel.source_address + offset));
+            Write32(destination_address, Read32(source_address));
+
+            destination_address += destination_offset * sizeof(u32);
+            source_address += source_offset * sizeof(u32);
         }
     } else {
         for (std::size_t i = 0; i < channel.word_count; i++) {
-            const u32 offset = i * sizeof(u16);
-            Write16(channel.destination_address + offset, Read16(channel.source_address + offset));
+            Write16(destination_address, Read16(source_address));
+
+            destination_address += destination_offset * sizeof(u16);
+            source_address += source_offset * sizeof(u16);
         }
     }
 
