@@ -232,6 +232,16 @@ private:
     [[nodiscard]] ARM_Instructions DecodeARMInstruction(u32 opcode) const;
     void ExecuteARMInstruction(ARM_Instructions instr, u32 opcode);
     void DisassembleARMInstruction(ARM_Instructions instr, u32 opcode);
+
+    static constexpr std::size_t THUMB_LUT_SIZE = 0x100;
+    using ThumbLUT = std::array<Thumb_Instructions, THUMB_LUT_SIZE>;
+
+    template <std::size_t I>
+    static consteval Thumb_Instructions GenerateThumbLUT_Impl();
+
+    constexpr void GenerateThumbLUT();
+    ThumbLUT thumb_lut {};
+
     [[nodiscard]] Thumb_Instructions DecodeThumbInstruction(u16 opcode) const;
     void ExecuteThumbInstruction(Thumb_Instructions instr, u16 opcode);
     void DisassembleThumbInstruction(Thumb_Instructions instr, u16 opcode);

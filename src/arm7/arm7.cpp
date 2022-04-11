@@ -5,6 +5,8 @@
 
 ARM7::ARM7(Bus& bus_, PPU& ppu_)
     : bus(bus_), ppu(ppu_) {
+    GenerateThumbLUT();
+
     // Initialize registers
     cpsr.flags.processor_mode = ProcessorMode::System;
 
@@ -164,29 +166,40 @@ void ARM7::ExecuteARMInstruction(const ARM_Instructions instr, const u32 opcode)
     }
 }
 
-ARM7::Thumb_Instructions ARM7::DecodeThumbInstruction(const u16 opcode) const {
-    if ((opcode & 0xF000) == 0xF000) return Thumb_Instructions::LongBranchWithLink;
-    if ((opcode & 0xF800) == 0xE000) return Thumb_Instructions::UnconditionalBranch;
-    if ((opcode & 0xFF00) == 0xDF00) return Thumb_Instructions::SoftwareInterrupt;
-    if ((opcode & 0xF000) == 0xD000) return Thumb_Instructions::ConditionalBranch;
-    if ((opcode & 0xF000) == 0xC000) return Thumb_Instructions::MultipleLoadStore;
-    if ((opcode & 0xF600) == 0xB400) return Thumb_Instructions::PushPopRegisters;
-    if ((opcode & 0xFF00) == 0xB000) return Thumb_Instructions::AddOffsetToStackPointer;
-    if ((opcode & 0xF000) == 0xA000) return Thumb_Instructions::LoadAddress;
-    if ((opcode & 0xF000) == 0x9000) return Thumb_Instructions::SPRelativeLoadStore;
-    if ((opcode & 0xF000) == 0x8000) return Thumb_Instructions::LoadStoreHalfword;
-    if ((opcode & 0xE000) == 0x6000) return Thumb_Instructions::LoadStoreWithImmediateOffset;
-    if ((opcode & 0xF200) == 0x5200) return Thumb_Instructions::LoadStoreSignExtendedByteHalfword;
-    if ((opcode & 0xF200) == 0x5000) return Thumb_Instructions::LoadStoreWithRegisterOffset;
-    if ((opcode & 0xF800) == 0x4800) return Thumb_Instructions::PCRelativeLoad;
-    if ((opcode & 0xFC00) == 0x4400) return Thumb_Instructions::HiRegisterOperationsBranchExchange;
-    if ((opcode & 0xFC00) == 0x4000) return Thumb_Instructions::ALUOperations;
-    if ((opcode & 0xE000) == 0x2000) return Thumb_Instructions::MoveCompareAddSubtractImmediate;
-    if ((opcode & 0xF800) == 0x1800) return Thumb_Instructions::AddSubtract;
-    if ((opcode & 0xE000) == 0x0000) return Thumb_Instructions::MoveShiftedRegister;
+template <std::size_t I>
+consteval ARM7::Thumb_Instructions ARM7::GenerateThumbLUT_Impl() {
+    if ((I & 0xF0) == 0xF0) return Thumb_Instructions::LongBranchWithLink;
+    if ((I & 0xF8) == 0xE0) return Thumb_Instructions::UnconditionalBranch;
+    if ((I & 0xFF) == 0xDF) return Thumb_Instructions::SoftwareInterrupt;
+    if ((I & 0xF0) == 0xD0) return Thumb_Instructions::ConditionalBranch;
+    if ((I & 0xF0) == 0xC0) return Thumb_Instructions::MultipleLoadStore;
+    if ((I & 0xF6) == 0xB4) return Thumb_Instructions::PushPopRegisters;
+    if ((I & 0xFF) == 0xB0) return Thumb_Instructions::AddOffsetToStackPointer;
+    if ((I & 0xF0) == 0xA0) return Thumb_Instructions::LoadAddress;
+    if ((I & 0xF0) == 0x90) return Thumb_Instructions::SPRelativeLoadStore;
+    if ((I & 0xF0) == 0x80) return Thumb_Instructions::LoadStoreHalfword;
+    if ((I & 0xE0) == 0x60) return Thumb_Instructions::LoadStoreWithImmediateOffset;
+    if ((I & 0xF2) == 0x52) return Thumb_Instructions::LoadStoreSignExtendedByteHalfword;
+    if ((I & 0xF2) == 0x50) return Thumb_Instructions::LoadStoreWithRegisterOffset;
+    if ((I & 0xF8) == 0x48) return Thumb_Instructions::PCRelativeLoad;
+    if ((I & 0xFC) == 0x44) return Thumb_Instructions::HiRegisterOperationsBranchExchange;
+    if ((I & 0xFC) == 0x40) return Thumb_Instructions::ALUOperations;
+    if ((I & 0xE0) == 0x20) return Thumb_Instructions::MoveCompareAddSubtractImmediate;
+    if ((I & 0xF8) == 0x18) return Thumb_Instructions::AddSubtract;
+    if ((I & 0xE0) == 0x00) return Thumb_Instructions::MoveShiftedRegister;
 
     // The opcode did not meet any of the above conditions.
     return Thumb_Instructions::Unknown;
+}
+
+constexpr void ARM7::GenerateThumbLUT() {
+    [&]<std::size_t... I>(std::index_sequence<I...>) {
+        ((thumb_lut[I] = GenerateThumbLUT_Impl<I>()), ...);
+    }(std::make_index_sequence<THUMB_LUT_SIZE>{});
+}
+
+ARM7::Thumb_Instructions ARM7::DecodeThumbInstruction(const u16 opcode) const {
+    return thumb_lut[Common::GetBitRange<15, 8>(opcode)];
 }
 
 void ARM7::ExecuteThumbInstruction(const Thumb_Instructions instr, const u16 opcode) {
