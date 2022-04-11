@@ -252,8 +252,7 @@ void ARM7::Thumb_LoadStoreWithRegisterOffset(const u16 opcode) {
             if (address_is_word_aligned) {
                 bus.Write32(address, GetRegister(rd));
             } else {
-                const u32 value = std::rotr(GetRegister(rd), (address & 0b11) * 8);
-                bus.Write32(address & ~0b11, value);
+                bus.Write32(address & ~0b11, GetRegister(rd));
             }
         }
     }
@@ -328,14 +327,7 @@ void ARM7::Thumb_StoreWordWithImmediateOffset(const u16 opcode) {
     const std::unsigned_integral auto rd = Common::GetBitRange<2, 0>(opcode);
 
     const u32 address = GetRegister(rb) + (offset << 2);
-    const bool address_is_word_aligned = ((address & 0b11) == 0);
-
-    if (address_is_word_aligned) {
-        bus.Write32(address, GetRegister(rd));
-    } else {
-        const u32 value = std::rotr(GetRegister(rd), (address & 0b11) * 8);
-        bus.Write32(address & ~0b11, value);
-    }
+    bus.Write32(address & ~0b11, GetRegister(rd));
 }
 
 void ARM7::Thumb_LoadWordWithImmediateOffset(const u16 opcode) {

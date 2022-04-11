@@ -428,8 +428,7 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             if constexpr (transfer_byte) {
                 bus.Write8(address, GetRegister(rd));
             } else {
-                const u32 value = std::rotr(GetRegister(rd), (address & 0b11) * 8);
-                bus.Write32(address & ~0b11, value);
+                bus.Write32(address & ~0b11, GetRegister(rd));
             }
         }
 
@@ -448,11 +447,7 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             if constexpr (transfer_byte) {
                 bus.Write8(address, GetRegister(rd));
             } else {
-                if ((address & 0b11) == 0) {
-                    bus.Write32(address, GetRegister(rd));
-                } else {
-                    UNIMPLEMENTED_MSG("Unimplemented arm write32 to unaligned address");
-                }
+                bus.Write32(address & ~0b11, GetRegister(rd));
             }
         }
 
