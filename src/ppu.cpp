@@ -157,38 +157,48 @@ void PPU::RenderTiledBGScanlineByPriority(const std::size_t priority) {
 }
 
 void PPU::RenderTiledBGScanline(const std::size_t bg_no) {
-    const u32 tile_map_base = bgs.at(bg_no).control.flags.screen_base_block * 0x800;
+    const BG& bg = bgs.at(bg_no);
 
-    for (std::size_t i = 0; i < GBA_SCREEN_WIDTH / TILE_WIDTH; i++) {
-        const u16 tile_entry = ReadVRAM<u16>(tile_map_base + ((vcount / TILE_HEIGHT) * 64) + (i * sizeof(u16)));
-        const u16 tile_index = Common::GetBitRange<0, 9>(tile_entry);
-        const Tile& tile = ConstructTile(bg_no, tile_index);
+    const u32 tile_map_base = bg.control.flags.screen_base_block * 0x800;
 
-        for (std::size_t tile_x = 0; tile_x < TILE_WIDTH; tile_x++) {
-            const std::size_t framebuffer_pixel_position = (vcount * GBA_SCREEN_WIDTH) + (i * TILE_WIDTH) + tile_x;
-            const std::size_t tile_y = vcount % TILE_HEIGHT;
+    for (u16 screen_x = 0; screen_x < GBA_SCREEN_WIDTH; screen_x++) {
+        const u16 map_x = (screen_x + bg.x_offset) % (Common::IsBitSet<0>(bg.control.flags.screen_size) ? 512 : 256);
+        const u16 map_y = (vcount + bg.y_offset) % (Common::IsBitSet<1>(bg.control.flags.screen_size) ? 512 : 256);
 
-            const bool vertical_flip = Common::IsBitSet<11>(tile_entry);
-            const std::size_t real_tile_y = vertical_flip ? ((TILE_HEIGHT - 1) - tile_y) : tile_y;
-
-            const bool horizontal_flip = Common::IsBitSet<10>(tile_entry);
-            const std::size_t real_tile_x = horizontal_flip ? ((TILE_WIDTH - 1) - tile_x) : tile_x;
-
-            // Color 0 is used for transparency.
-            if (tile[real_tile_y][real_tile_x] == 0) {
-                continue;
-            }
-
-            const u16 palette_index = Common::GetBitRange<12, 15>(tile_entry);
-            const auto pram_addr = ((palette_index << 4) | tile[real_tile_y][real_tile_x]) * sizeof(u16);
-            framebuffer.at(framebuffer_pixel_position) = ReadPRAM<u16>(pram_addr);
+        auto tile_address = tile_map_base + ((map_x / TILE_WIDTH) + (map_y / TILE_HEIGHT * 32)) * sizeof(u16);
+        if (map_x >= 256) {
+            tile_address = (tile_map_base + (((map_x - 256) / TILE_WIDTH) + (map_y / TILE_HEIGHT * 32)) * sizeof(u16)) + 0x800;
         }
+        // TODO: map_y >= 256
+
+        u16 tile_entry = ReadVRAM<u16>(tile_address);
+        const u16 tile_index = Common::GetBitRange<0, 9>(tile_entry);
+        const Tile& tile = ConstructTile(bg, tile_index);
+
+        const std::size_t tile_x = map_x % TILE_WIDTH;
+        const std::size_t tile_y = map_y % TILE_HEIGHT;
+
+        const bool vertical_flip = Common::IsBitSet<11>(tile_entry);
+        const std::size_t real_tile_y = vertical_flip ? ((TILE_HEIGHT - 1) - tile_y) : tile_y;
+
+        const bool horizontal_flip = Common::IsBitSet<10>(tile_entry);
+        const std::size_t real_tile_x = horizontal_flip ? ((TILE_WIDTH - 1) - tile_x) : tile_x;
+
+        // Color 0 is used for transparency.
+        if (tile[real_tile_y][real_tile_x] == 0) {
+            continue;
+        }
+
+        const u16 palette_index = Common::GetBitRange<12, 15>(tile_entry);
+        const auto pram_addr = ((palette_index << 4) | tile[real_tile_y][real_tile_x]) * sizeof(u16);
+        const std::size_t framebuffer_pixel_position = (vcount * GBA_SCREEN_WIDTH) + screen_x;
+        framebuffer.at(framebuffer_pixel_position) = ReadPRAM<u16>(pram_addr);
     }
 }
 
-PPU::Tile PPU::ConstructTile(const std::size_t bg_no, const u16 tile_index) {
-    const u32 tile_data_base = bgs.at(bg_no).control.flags.character_base_block * 0x4000;
-    const std::size_t tile_size = bgs.at(bg_no).control.flags.use_256_colors ? 64 : 32;
+PPU::Tile PPU::ConstructTile(const BG& bg, const u16 tile_index) {
+    const u32 tile_data_base = bg.control.flags.character_base_block * 0x4000;
+    const std::size_t tile_size = bg.control.flags.use_256_colors ? 64 : 32;
     const u32 tile_base = tile_data_base + (tile_index * tile_size);
 
     Tile tile {};
@@ -196,7 +206,7 @@ PPU::Tile PPU::ConstructTile(const std::size_t bg_no, const u16 tile_index) {
     std::vector<u8> tile_data(tile_size);
     std::copy(vram.data() + tile_base, vram.data() + tile_base + tile_size, tile_data.data());
 
-    if (bgs.at(bg_no).control.flags.use_256_colors) {
+    if (bg.control.flags.use_256_colors) {
         for (std::size_t y = 0; y < TILE_HEIGHT; y++) {
             for (std::size_t x = 0; x < TILE_WIDTH; x++) {
                 tile[y][x] = tile_data.at((y * TILE_WIDTH) + x);

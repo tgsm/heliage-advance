@@ -283,5 +283,5 @@ private:
 
     using Tile = std::array<std::array<u8, 8>, 8>;
 
-    Tile ConstructTile(std::size_t bg_no, u16 tile_index);
+    Tile ConstructTile(const BG& bg, u16 tile_index);
 };
