@@ -63,6 +63,17 @@ u8 Bus::Read8(u32 addr) {
             }
             return cartridge.Read<u8>(masked_addr & 0x1FFFFFF);
 
+        case 0xE:
+            if (masked_addr == 0xE000000) {
+                return 0xC2;
+            }
+
+            if (masked_addr == 0xE000001) {
+                return 0x09;
+            }
+
+            [[fallthrough]];
+
         default:
             LERROR("unrecognized read8 from 0x{:08X}", addr);
             return 0xFF;
