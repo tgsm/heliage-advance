@@ -223,6 +223,14 @@ private:
     void RenderTiledBGScanlineByPriority(std::size_t priority);
     void RenderTiledBGScanline(std::size_t bg_no);
 
+    struct Sprite {
+        std::array<u16, 3> attributes {};
+    };
+
+    std::size_t DetermineTileInSprite(const Sprite& sprite, u16 screen_x, u16 screen_y, u16 sprite_x, u16 sprite_y, u16 width, u16 height);
+    void RenderTiledSpriteScanlineByPriority(std::size_t priority);
+    void RenderTiledSpriteScanline(const Sprite& sprite);
+
     union {
         u16 raw = 0x0000;
         struct {
@@ -283,5 +291,6 @@ private:
 
     using Tile = std::array<std::array<u8, 8>, 8>;
 
-    Tile ConstructTile(const BG& bg, u16 tile_index);
+    Tile ConstructBGTile(const BG& bg, u16 tile_index);
+    Tile ConstructSpriteTile(const Sprite& sprite, u16 tile_index);
 };
