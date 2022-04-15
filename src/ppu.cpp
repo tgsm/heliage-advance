@@ -62,7 +62,7 @@ void PPU::EndHBlank() {
         vcount = 0;
         dispstat.flags.vblank = false;
         StartNewScanline();
-    } else if (vcount == 160) {
+    } else if (vcount == GBA_SCREEN_HEIGHT) {
         if (dispstat.flags.vblank_irq) {
             interrupts.RequestInterrupt(Interrupts::Bits::VBlank);
         }
@@ -74,7 +74,7 @@ void PPU::EndHBlank() {
         framebuffer = {};
 
         HandleFrontendEvents(&bus.GetKeypad());
-    } else if (vcount >= 160) {
+    } else if (vcount > GBA_SCREEN_HEIGHT) {
         StartVBlankLine();
     } else {
         StartNewScanline();
@@ -86,7 +86,7 @@ void PPU::StartVBlankLine() {
 }
 
 void PPU::RenderScanline() {
-    if (vcount >= 160) {
+    if (vcount >= GBA_SCREEN_HEIGHT) {
         return;
     }
 
@@ -326,7 +326,12 @@ void PPU::RenderTiledSpriteScanline(const Sprite& sprite) {
             continue;
         }
 
-        const std::unsigned_integral auto tile_index = Common::GetBitRange<0, 9>(sprite.attributes[2]);
+        const bool use_256_colors = Common::IsBitSet<13>(sprite.attributes[0]);
+
+        std::unsigned_integral auto tile_index = Common::GetBitRange<0, 9>(sprite.attributes[2]);
+        if (use_256_colors) {
+            tile_index /= 2;
+        }
         const std::size_t which_tile = DetermineTileInSprite(sprite, screen_x, vcount, x, y, width, height);
         const Tile& tile = ConstructSpriteTile(sprite, tile_index + which_tile);
 
@@ -341,7 +346,6 @@ void PPU::RenderTiledSpriteScanline(const Sprite& sprite) {
         }
 
         u16 palette_index = 0;
-        const bool use_256_colors = Common::IsBitSet<13>(sprite.attributes[0]);
         if (!use_256_colors) {
             palette_index = Common::GetBitRange<12, 15>(sprite.attributes[2]);
         }
