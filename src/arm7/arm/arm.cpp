@@ -13,15 +13,16 @@ void ARM7::ARM_Multiply(const u32 opcode) {
     const std::unsigned_integral auto rs = Common::GetBitRange<11, 8>(opcode);
     const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
-    SetRegister(rd, GetRegister(rm) * GetRegister(rs));
-
+    u32 result = GetRegister(rm) * GetRegister(rs);
     if (accumulate) {
-        SetRegister(rd, GetRegister(rd) + GetRegister(rn));
+        result += GetRegister(rn);
     }
 
+    SetRegister(rd, result);
+
     if (set_condition_codes) {
-        cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
-        cpsr.flags.zero = (GetRegister(rd) == 0);
+        cpsr.flags.negative = Common::IsBitSet<31>(result);
+        cpsr.flags.zero = (result == 0);
     }
 }
 
