@@ -190,7 +190,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
             switch (op) {
                 case 0x0:
-                    SetRegister(rd, GetRegister(rn) | shifted_operand);
+                    SetRegister(rd, GetRegister(rn) & shifted_operand);
                     break;
                 case 0x2:
                     SetRegister(rd, SUB(GetRegister(rn), shifted_operand, set_condition_codes));
