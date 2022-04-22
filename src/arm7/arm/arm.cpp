@@ -242,7 +242,7 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
             SetRegister(rd, value);
         }
 
-        if (write_back) {
+        if (write_back && rd != rn) {
             SetRegister(rn, address);
         }
     } else {
@@ -265,7 +265,9 @@ void ARM7::ARM_LoadHalfwordImmediate(const u32 opcode, const bool sign) {
             address -= offset;
         }
 
-        SetRegister(rn, address);
+        if (rd != rn) {
+            SetRegister(rn, address);
+        }
     }
 }
 
@@ -396,10 +398,6 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             } else {
                 offset = Shift(GetRegister(rm), shift_type, shift_amount, false);
             }
-
-            if (!add_offset_to_base) {
-                offset = -offset;
-            }
         } else if ((shift & 0b1001) == 0b0001) {
             UNIMPLEMENTED();
         } else {
@@ -432,7 +430,7 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             }
         }
 
-        if (write_back) {
+        if (write_back && rd != rn) {
             SetRegister(rn, address);
         }
     } else {
@@ -457,7 +455,9 @@ void ARM7::ARM_SingleDataTransfer_Impl(const u32 opcode) {
             address -= offset;
         }
 
-        SetRegister(rn, address);
+        if (rd != rn) {
+            SetRegister(rn, address);
+        }
     }
 }
 

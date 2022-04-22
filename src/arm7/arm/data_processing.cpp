@@ -27,6 +27,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     if (op2_is_immediate) {
         const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
         const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
+        const bool old_carry_flag = cpsr.flags.carry;
         const u32 rotated_operand = Shift_RotateRight(imm, rotate_amount << 1, set_condition_codes);
 
         switch (op) {
@@ -49,6 +50,7 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                 SetRegister(rd, ADD(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
             case 0x5:
+                cpsr.flags.carry = old_carry_flag;
                 SetRegister(rd, ADC(GetRegister(rn), rotated_operand, set_condition_codes));
                 break;
             case 0x6:
@@ -182,6 +184,10 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
 
             gpr[15] -= 4;
 
+            if (rn == 15) {
+                gpr[15] += 4;
+            }
+
             switch (op) {
                 case 0x0:
                     SetRegister(rd, GetRegister(rn) | shifted_operand);
@@ -219,6 +225,10 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     break;
                 default:
                     UNIMPLEMENTED_MSG("unimplemented data processing op 0x{:X} w/ register and barrel shifter", op);
+            }
+
+            if (rn == 15) {
+                gpr[15] -= 4;
             }
         } else {
             ASSERT(false);
