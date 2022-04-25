@@ -3,8 +3,8 @@
 #include "common/bits.h"
 #include "common/logging.h"
 
-ARM7::ARM7(Bus& bus_, PPU& ppu_)
-    : bus(bus_), ppu(ppu_) {
+ARM7::ARM7(Bus& bus_, Timers& timers_)
+    : bus(bus_), timers(timers_) {
     GenerateThumbLUT();
 
     // Initialize registers
@@ -63,7 +63,7 @@ void ARM7::Step(bool dump_registers) {
     HandleInterrupts();
 
     if (halted) {
-        ppu.AdvanceCycles(1);
+        timers.AdvanceCycles(1, Timers::CycleType::None);
         return;
     }
 
@@ -90,12 +90,10 @@ void ARM7::Step(bool dump_registers) {
         const ARM_Instructions instr = DecodeARMInstruction(opcode);
         if (dump_registers)
             DumpRegisters();
+
         // DisassembleARMInstruction(instr, opcode);
         ExecuteARMInstruction(instr, opcode);
     }
-
-    // TODO: actual timing
-    ppu.AdvanceCycles(1);
 }
 
 ARM7::ARM_Instructions ARM7::DecodeARMInstruction(const u32 opcode) const {

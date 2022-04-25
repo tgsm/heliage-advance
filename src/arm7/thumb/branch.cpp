@@ -55,6 +55,8 @@ void ARM7::Thumb_ConditionalBranch(const u16 opcode) {
 
     if (condition) {
         SetPC(GetPC() + (offset << 1));
+        timers.AdvanceCycles(2, Timers::CycleType::Sequential);
+        timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
     }
 }
 
@@ -70,6 +72,9 @@ void ARM7::Thumb_SoftwareInterrupt([[maybe_unused]] const u16 opcode) {
     cpsr.flags.irq_disabled = true;
     SetPC(0x00000008);
     SetSPSR(old_cpsr);
+
+    timers.AdvanceCycles(2, Timers::CycleType::Sequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
 }
 
 void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
@@ -80,6 +85,9 @@ void ARM7::Thumb_UnconditionalBranch(const u16 opcode) {
     offset >>= 4;
 
     SetPC(GetPC() + offset);
+
+    timers.AdvanceCycles(2, Timers::CycleType::Sequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
 }
 
 void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
@@ -97,4 +105,7 @@ void ARM7::Thumb_LongBranchWithLink(const u16 opcode) {
 
     SetLR(lr);
     SetPC(pc);
+
+    timers.AdvanceCycles(2, Timers::CycleType::Sequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
 }

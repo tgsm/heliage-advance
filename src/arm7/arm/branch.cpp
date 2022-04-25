@@ -9,6 +9,9 @@ void ARM7::ARM_BranchAndExchange(const u32 opcode) {
     LDEBUG("thumb: {}", cpsr.flags.thumb_mode);
 
     SetPC(GetRegister(rn) & ~0b1);
+
+    timers.AdvanceCycles(2, Timers::CycleType::Sequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
 }
 
 void ARM7::ARM_Branch(const u32 opcode) {
@@ -23,6 +26,9 @@ void ARM7::ARM_Branch(const u32 opcode) {
     }
 
     SetPC(GetPC() + offset);
+
+    timers.AdvanceCycles(2, Timers::CycleType::Sequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
 }
 
 void ARM7::ARM_SoftwareInterrupt([[maybe_unused]] const u32 opcode) {
@@ -36,4 +42,7 @@ void ARM7::ARM_SoftwareInterrupt([[maybe_unused]] const u32 opcode) {
     cpsr.flags.irq_disabled = true;
     SetPC(0x00000008);
     SetSPSR(old_cpsr);
+
+    timers.AdvanceCycles(2, Timers::CycleType::Sequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
 }

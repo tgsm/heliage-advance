@@ -24,6 +24,13 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
     const std::unsigned_integral auto rd = Common::GetBitRange<15, 12>(opcode);
     const std::unsigned_integral auto op2 = Common::GetBitRange<11, 0>(opcode);
 
+    timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+
+    if (rd == 15) {
+        timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+        timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+    }
+
     if (op2_is_immediate) {
         const std::unsigned_integral auto rotate_amount = Common::GetBitRange<11, 8>(op2);
         const std::unsigned_integral auto imm = Common::GetBitRange<7, 0>(op2);
@@ -174,6 +181,8 @@ void ARM7::ARM_DataProcessing(const u32 opcode) {
                     UNREACHABLE();
             }
         } else if (!Common::IsBitSet<3>(shift) && Common::IsBitSet<0>(shift)) {
+            timers.AdvanceCycles(1, Timers::CycleType::Internal);
+
             // If a register is used to specify the shift amount the PC will be 12 bytes ahead.
             gpr[15] += 4;
 

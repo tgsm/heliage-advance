@@ -13,9 +13,28 @@ void ARM7::ARM_Multiply(const u32 opcode) {
     const std::unsigned_integral auto rs = Common::GetBitRange<11, 8>(opcode);
     const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
 
+    timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+
+    const auto m = [&]() -> u16 {
+        const u32 multiplier = GetRegister(rs);
+
+        if (Common::GetBitRange<31, 8>(multiplier) == 0 || Common::GetBitRange<31, 8>(multiplier) == 0xFFFFFF) {
+            return 1;
+        } else if (Common::GetBitRange<31, 16>(multiplier) == 0 || Common::GetBitRange<31, 16>(multiplier) == 0xFFFF) {
+            return 2;
+        } else if (Common::GetBitRange<31, 24>(multiplier) == 0 || Common::GetBitRange<31, 24>(multiplier) == 0xFF) {
+            return 3;
+        } else {
+            return 4;
+        }
+    }();
+
     u32 result = GetRegister(rm) * GetRegister(rs);
+    timers.AdvanceCycles(m, Timers::CycleType::Internal);
+
     if (accumulate) {
         result += GetRegister(rn);
+        timers.AdvanceCycles(1, Timers::CycleType::Internal);
     }
 
     SetRegister(rd, result);
@@ -34,6 +53,34 @@ void ARM7::ARM_MultiplyLong(const u32 opcode) {
     const std::unsigned_integral auto rdlo = Common::GetBitRange<15, 12>(opcode);
     const std::unsigned_integral auto rs = Common::GetBitRange<11, 8>(opcode);
     const std::unsigned_integral auto rm = Common::GetBitRange<3, 0>(opcode);
+
+    timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+    const auto m = [&]() -> u16 {
+        const u32 multiplier = GetRegister(rs);
+
+        if (sign) {
+            if (Common::GetBitRange<31, 8>(multiplier) == 0 || Common::GetBitRange<31, 8>(multiplier) == 0xFFFFFF) {
+                return 1;
+            } else if (Common::GetBitRange<31, 16>(multiplier) == 0 || Common::GetBitRange<31, 16>(multiplier) == 0xFFFF) {
+                return 2;
+            } else if (Common::GetBitRange<31, 24>(multiplier) == 0 || Common::GetBitRange<31, 24>(multiplier) == 0xFF) {
+                return 3;
+            } else {
+                return 4;
+            }
+        } else {
+            if (Common::GetBitRange<31, 8>(multiplier) == 0) {
+                return 1;
+            } else if (Common::GetBitRange<31, 16>(multiplier) == 0) {
+                return 2;
+            } else if (Common::GetBitRange<31, 24>(multiplier) == 0) {
+                return 3;
+            } else {
+                return 4;
+            }
+        }
+    }();
+    timers.AdvanceCycles(accumulate ? (m + 2) : (m + 1), Timers::CycleType::Internal);
 
     if (sign) {
         const s64 rm_se = (static_cast<s64>(GetRegister(rm)) << 32) >> 32;
@@ -96,12 +143,20 @@ void ARM7::ARM_HalfwordDataTransferRegister(const u32 opcode) {
             break;
         case 0b01:
             ARM_HalfwordDataTransferRegister_Impl<false, true>(opcode, sign);
+            // TODO: STRSH?
+            timers.AdvanceCycles(2, Timers::CycleType::Nonsequential);
             break;
         case 0b10:
             ARM_HalfwordDataTransferRegister_Impl<true, false>(opcode, sign);
+            timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Internal);
             break;
         case 0b11:
             ARM_HalfwordDataTransferRegister_Impl<true, true>(opcode, sign);
+            timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Internal);
             break;
         default:
             UNREACHABLE();
@@ -195,13 +250,20 @@ void ARM7::ARM_HalfwordDataTransferImmediate(const u32 opcode) {
             break;
         case 0b01:
             ARM_StoreHalfwordImmediate(opcode, sign);
+            timers.AdvanceCycles(2, Timers::CycleType::Nonsequential);
             break;
         case 0b10:
             // Not to be confused with ARM_LoadByte
             ARM_LoadSignedByte(opcode);
+            timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Internal);
             break;
         case 0b11:
             ARM_LoadHalfwordImmediate(opcode, sign);
+            timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Internal);
             break;
         default:
             UNREACHABLE();
@@ -350,18 +412,26 @@ void ARM7::ARM_SingleDataTransfer(const u32 opcode) {
         case 0b000:
             // Store word
             ARM_SingleDataTransfer_Impl<false, false>(opcode);
+            timers.AdvanceCycles(2, Timers::CycleType::Nonsequential);
             break;
         case 0b001:
             // Load word
             ARM_SingleDataTransfer_Impl<true, false>(opcode);
+            timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Internal);
             break;
         case 0b100:
             // Store byte
             ARM_SingleDataTransfer_Impl<false, true>(opcode);
+            timers.AdvanceCycles(2, Timers::CycleType::Nonsequential);
             break;
         case 0b101:
             // Load byte
             ARM_SingleDataTransfer_Impl<true, true>(opcode);
+            timers.AdvanceCycles(1, Timers::CycleType::Sequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+            timers.AdvanceCycles(1, Timers::CycleType::Internal);
             break;
         default:
             UNREACHABLE();
@@ -487,6 +557,11 @@ void ARM7::ARM_BlockDataTransfer(const u32 opcode) {
     if (set_bits.empty()) {
         return;
     }
+
+    const auto n = set_bits.size();
+    timers.AdvanceCycles(n, Timers::CycleType::Sequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Nonsequential);
+    timers.AdvanceCycles(1, Timers::CycleType::Internal);
 
     const bool rn_is_in_rlist = std::find(set_bits.begin(), set_bits.end(), rn) != set_bits.end();
 

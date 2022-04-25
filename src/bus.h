@@ -9,10 +9,11 @@
 #include "ppu.h"
 
 class ARM7;
+class Timers;
 
 class Bus {
 public:
-    Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_, Interrupts& interrupts_, ARM7& arm7_);
+    Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_, Interrupts& interrupts_, ARM7& arm7_, Timers& timers_);
 
     [[nodiscard]] u8 Read8(u32 addr);
     void Write8(u32 addr, u8 value);
@@ -34,6 +35,7 @@ private:
     PPU& ppu;
     Interrupts& interrupts;
     ARM7& arm7;
+    Timers& timers;
 
     std::array<u8, 0x40000> wram_onboard {};
     std::array<u8, 0x8000> wram_onchip {};

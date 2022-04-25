@@ -15,7 +15,7 @@ class PPU {
 public:
     PPU(Bus& bus_, Interrupts& interrupts_);
 
-    void AdvanceCycles(u8 cycles);
+    void AdvanceCycles(u16 cycles);
     void Tick();
 
     [[nodiscard]] u16 GetDISPCNT() const { return dispcnt.raw; }
@@ -92,6 +92,7 @@ public:
     template <UnsignedIntegerMax32 T>
     void WriteVRAM(u32 addr, T value) {
         if constexpr (std::is_same_v<T, u8>) {
+            addr &= ~0b1;
             vram.at(addr) = value;
             vram.at(addr + 1) = value;
         }
@@ -135,6 +136,7 @@ public:
     template <UnsignedIntegerMax32 T>
     void WritePRAM(u32 addr, T value) {
         if constexpr (std::is_same_v<T, u8>) {
+            addr &= ~0b1;
             pram.at(addr) = value;
             pram.at(addr + 1) = value;
         }

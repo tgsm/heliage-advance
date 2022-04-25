@@ -7,6 +7,7 @@
 #include "keypad.h"
 #include "interrupts.h"
 #include "ppu.h"
+#include "timer.h"
 
 class GBA {
 public:
@@ -19,4 +20,5 @@ private:
     ARM7 arm7;
     Keypad keypad;
     Interrupts interrupts;
+    Timers timers;
 };

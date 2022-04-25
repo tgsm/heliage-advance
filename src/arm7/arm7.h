@@ -3,10 +3,11 @@
 #include "bus.h"
 #include "common/logging.h"
 #include "common/types.h"
+#include "timer.h"
 
 class ARM7 {
 public:
-    ARM7(Bus& bus_, PPU& ppu_);
+    ARM7(Bus& bus_, Timers& timers_);
 
     void Step(bool dump_registers);
 
@@ -322,7 +323,7 @@ private:
     PSR spsr_und;
 
     Bus& bus;
-    PPU& ppu;
+    Timers& timers;
 
     void ARM_DataProcessing(u32 opcode);
     void ARM_DisassembleDataProcessing(u32 opcode);

@@ -40,9 +40,14 @@ set(SOURCES
     src/gba.cpp
     src/main.cpp
     src/ppu.cpp
+    src/timer.cpp
 )
 
 set(HEADERS
+    src/common/bits.h
+    src/common/defines.h
+    src/common/logging.h
+    src/common/types.h
     src/arm7/arm7.h
     src/bios.h
     src/bus.h
@@ -50,7 +55,7 @@ set(HEADERS
     src/gba.h
     src/keypad.h
     src/ppu.h
-    src/common/types.h
+    src/timer.h
 )
 
 if (${HA_FRONTEND} MATCHES "SDL2")

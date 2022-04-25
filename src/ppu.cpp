@@ -11,7 +11,7 @@ PPU::PPU(Bus& bus_, Interrupts& interrupts_)
     StartNewScanline();
 }
 
-void PPU::AdvanceCycles(u8 cycles) {
+void PPU::AdvanceCycles(u16 cycles) {
     for (; cycles > 0; cycles--) {
         vcycles++;
         Tick();
@@ -93,6 +93,7 @@ void PPU::RenderScanline() {
     switch (dispcnt.flags.bg_mode) {
         case 0:
         case 1:
+        case 2:
             // Render the backdrop color before anything else.
             for (std::size_t i = 0; i < GBA_SCREEN_WIDTH; i++) {
                 framebuffer.at(vcount * GBA_SCREEN_WIDTH + i) = ReadPRAM<u16>(0);

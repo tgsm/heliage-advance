@@ -3,8 +3,8 @@
 #include "common/bits.h"
 #include "common/logging.h"
 
-Bus::Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_, Interrupts& interrupts_, ARM7& arm7_)
-    : bios(bios_), cartridge(cartridge_), keypad(keypad_), ppu(ppu_), interrupts(interrupts_), arm7(arm7_) {
+Bus::Bus(BIOS& bios_, Cartridge& cartridge_, Keypad& keypad_, PPU& ppu_, Interrupts& interrupts_, ARM7& arm7_, Timers& timers_)
+    : bios(bios_), cartridge(cartridge_), keypad(keypad_), ppu(ppu_), interrupts(interrupts_), arm7(arm7_), timers(timers_) {
 }
 
 u8 Bus::Read8(u32 addr) {
@@ -29,6 +29,8 @@ u8 Bus::Read8(u32 addr) {
             switch (masked_addr) {
                 case 0x4000006:
                     return ppu.GetVCOUNT();
+                case 0x4000130:
+                    return keypad.GetState();
                 case 0x4000300:
                     return post_flg;
                 default:
@@ -57,6 +59,10 @@ u8 Bus::Read8(u32 addr) {
 
         case 0x8:
         case 0x9:
+        case 0xA:
+        case 0xB:
+        case 0xC:
+        case 0xD:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
                 // TODO: open bus?
                 return 0;
@@ -103,6 +109,15 @@ void Bus::Write8(u32 addr, u8 value) {
                     return;
                 case 0x4000008:
                     ppu.SetBGCNT<0>((ppu.GetBGCNT<0>() & ~0xFF) | value);
+                    return;
+                case 0x4000010:
+                    ppu.SetBGXOffset<0>(value);
+                    return;
+                case 0x4000012:
+                    ppu.SetBGYOffset<0>(value);
+                    return;
+                case 0x4000202:
+                    interrupts.SetIF(value);
                     return;
                 case 0x4000208:
                     interrupts.SetIME(Common::IsBitSet<0>(value));
@@ -207,12 +222,26 @@ u16 Bus::Read16(u32 addr) {
                     return 0;
                 case 0x40000DE:
                     return dma_channels[3].control.raw;
+                case 0x4000100:
+                    return timers.timer0.GetCounter();
+                case 0x4000102:
+                    return timers.timer0.GetControl();
+                case 0x4000104:
+                    return timers.timer1.GetCounter();
+                case 0x4000106:
+                    return timers.timer1.GetControl();
+                case 0x4000108:
+                    return timers.timer2.GetCounter();
+                case 0x400010C:
+                    return timers.timer3.GetControl();
                 case 0x4000130:
                     return keypad.GetState();
                 case 0x4000200:
                     return interrupts.GetIE();
                 case 0x4000202:
                     return interrupts.GetIF();
+                case 0x4000204:
+                    return timers.GetWaitstateControl();
                 case 0x4000208:
                     return interrupts.GetIME();
                 default:
@@ -238,6 +267,11 @@ u16 Bus::Read16(u32 addr) {
             return ppu.ReadOAM<u16>(masked_addr & 0x3FF);
 
         case 0x8:
+        case 0x9:
+        case 0xA:
+        case 0xB:
+        case 0xC:
+        case 0xD:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
                 // TODO: open bus?
                 return 0;
@@ -337,14 +371,49 @@ void Bus::Write16(u32 addr, u16 value) {
                 case 0x40000DE:
                     SetDMAControl<3>(value);
                     return;
+                case 0x4000100:
+                    timers.timer0.SetReload(value);
+                    return;
+                case 0x4000102:
+                    timers.timer0.SetControl(value);
+                    return;
+                case 0x4000104:
+                    timers.timer1.SetReload(value);
+                    return;
+                case 0x4000106:
+                    timers.timer1.SetControl(value);
+                    return;
+                case 0x4000108:
+                    timers.timer2.SetReload(value);
+                    return;
+                case 0x400010A:
+                    timers.timer2.SetControl(value);
+                    return;
+                case 0x400010C:
+                    timers.timer3.SetReload(value);
+                    return;
+                case 0x400010E:
+                    timers.timer3.SetControl(value);
+                    return;
                 case 0x4000200:
                     interrupts.SetIE(value);
                     return;
                 case 0x4000202:
                     interrupts.SetIF(value);
                     return;
+                case 0x4000204:
+                    timers.SetWaitstateControl(value);
+                    return;
                 case 0x4000208:
                     interrupts.SetIME(Common::IsBitSet<0>(value));
+                    return;
+                case 0x4000301:
+                    post_flg = Common::IsBitSet<0>(value);
+                    if (!Common::IsBitSet<15>(value)) {
+                        arm7.halted = true;
+                    } else {
+                        // TODO: stop mode
+                    }
                     return;
                 default:
                     LERROR("unrecognized write16 0x{:04X} to IO register 0x{:08X}", value, masked_addr);
@@ -412,8 +481,18 @@ u32 Bus::Read32(u32 addr) {
                     return (0xFFFF << 16) | ppu.GetDISPCNT();
                 case 0x4000004:
                     return ppu.GetDISPSTAT();
+                case 0x40000B8:
+                    return dma_channels[0].control.raw << 16;
+                case 0x40000C4:
+                    return dma_channels[1].control.raw << 16;
+                case 0x40000D0:
+                    return dma_channels[2].control.raw << 16;
                 case 0x40000DC:
-                    return (dma_channels[3].control.raw << 16) | 0xFFFF;
+                    return dma_channels[3].control.raw << 16;
+                case 0x4000100:
+                    return (timers.timer0.GetControl() << 16) | timers.timer0.GetCounter();
+                case 0x4000104:
+                    return (timers.timer1.GetControl() << 16) | timers.timer1.GetCounter();
                 case 0x4000130:
                     return keypad.GetState();
                 case 0x4000200:
@@ -444,6 +523,10 @@ u32 Bus::Read32(u32 addr) {
 
         case 0x8:
         case 0x9:
+        case 0xA:
+        case 0xB:
+        case 0xC:
+        case 0xD:
             if ((masked_addr & 0x1FFFFFF) >= cartridge.GetSize()) {
                 // TODO: open bus?
                 return 0;
@@ -480,9 +563,32 @@ void Bus::Write32(u32 addr, u32 value) {
                 case 0x4000000:
                     ppu.SetDISPCNT(value);
                     return;
+                case 0x4000004:
+                    ppu.SetDISPSTAT(Common::GetBitRange<15, 0>(value));
+                    return;
                 case 0x4000008:
                     ppu.SetBGCNT<0>(Common::GetBitRange<15, 0>(value));
                     ppu.SetBGCNT<1>(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x400000C:
+                    ppu.SetBGCNT<2>(Common::GetBitRange<15, 0>(value));
+                    ppu.SetBGCNT<3>(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x4000010:
+                    ppu.SetBGXOffset<0>(Common::GetBitRange<15, 0>(value));
+                    ppu.SetBGYOffset<0>(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x4000014:
+                    ppu.SetBGXOffset<1>(Common::GetBitRange<15, 0>(value));
+                    ppu.SetBGYOffset<1>(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x4000018:
+                    ppu.SetBGXOffset<2>(Common::GetBitRange<15, 0>(value));
+                    ppu.SetBGYOffset<2>(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x400001C:
+                    ppu.SetBGXOffset<3>(Common::GetBitRange<15, 0>(value));
+                    ppu.SetBGYOffset<3>(Common::GetBitRange<31, 16>(value));
                     return;
                 case 0x40000B0:
                     dma_channels[0].source_address = value;
@@ -524,9 +630,28 @@ void Bus::Write32(u32 addr, u32 value) {
                     dma_channels[3].word_count = Common::GetBitRange<15, 0>(value);
                     SetDMAControl<3>(Common::GetBitRange<31, 16>(value));
                     return;
+                case 0x4000100:
+                    timers.timer0.SetReload(Common::GetBitRange<15, 0>(value));
+                    timers.timer0.SetControl(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x4000104:
+                    timers.timer1.SetReload(Common::GetBitRange<15, 0>(value));
+                    timers.timer1.SetControl(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x4000108:
+                    timers.timer2.SetReload(Common::GetBitRange<15, 0>(value));
+                    timers.timer2.SetControl(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x400010C:
+                    timers.timer2.SetReload(Common::GetBitRange<15, 0>(value));
+                    timers.timer2.SetControl(Common::GetBitRange<31, 16>(value));
+                    return;
                 case 0x4000200:
                     interrupts.SetIE(Common::GetBitRange<15, 0>(value));
                     interrupts.SetIF(Common::GetBitRange<31, 16>(value));
+                    return;
+                case 0x4000204:
+                    timers.SetWaitstateControl(Common::GetBitRange<15, 0>(value));
                     return;
                 case 0x4000208:
                     interrupts.SetIME(Common::IsBitSet<0>(value));
@@ -557,7 +682,7 @@ void Bus::Write32(u32 addr, u32 value) {
             return;
 
         case 0x8:
-            LWARN("tried to write32 0x{:08X} to 0x{:08X} (cartridge space)", value, masked_addr);
+            // LWARN("tried to write32 0x{:08X} to 0x{:08X} (cartridge space)", value, masked_addr);
             return;
 
         default:

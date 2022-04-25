@@ -20,6 +20,8 @@ void ARM7::Thumb_MoveShiftedRegister(const u16 opcode) {
         default:
             UNREACHABLE();
     }
+
+    timers.AdvanceCycles(1, Timers::CycleType::Sequential);
 }
 
 void ARM7::Thumb_LSL(const u16 opcode) {
@@ -86,6 +88,8 @@ void ARM7::Thumb_AddSubtract(const u16 opcode) {
             SetRegister(rd, ADD(GetRegister(rs), GetRegister(rn_or_immediate), true));
         }
     }
+
+    timers.AdvanceCycles(1, Timers::CycleType::Sequential);
 }
 
 void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
@@ -112,6 +116,8 @@ void ARM7::Thumb_MoveCompareAddSubtractImmediate(const u16 opcode) {
         default:
             UNREACHABLE_MSG("interpreter: illegal thumb MCASI op 0x{:X}", op);
     }
+
+    timers.AdvanceCycles(1, Timers::CycleType::Sequential);
 }
 
 void ARM7::Thumb_ALUOperations(const u16 opcode) {
@@ -174,6 +180,8 @@ void ARM7::Thumb_ALUOperations(const u16 opcode) {
 
     cpsr.flags.negative = Common::IsBitSet<31>(GetRegister(rd));
     cpsr.flags.zero = (GetRegister(rd) == 0);
+
+    timers.AdvanceCycles(1, Timers::CycleType::Sequential);
 }
 
 void ARM7::Thumb_HiRegisterOperationsBranchExchange(const u16 opcode) {
