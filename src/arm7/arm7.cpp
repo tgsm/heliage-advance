@@ -8,13 +8,8 @@ ARM7::ARM7(Bus& bus_, Timers& timers_)
     GenerateThumbLUT();
 
     // Initialize registers
-    cpsr.flags.processor_mode = ProcessorMode::System;
-
-    // taken from no$gba
-    SetRegister(0, 0x00000CA5);
-    SetSP(0x03007F00);
-    SetLR(0x08000000);
-    SetPC(0x08000000);
+    cpsr.flags.processor_mode = ProcessorMode::Supervisor;
+    SetPC(0x00000000);
 }
 
 void ARM7::HandleInterrupts() {
