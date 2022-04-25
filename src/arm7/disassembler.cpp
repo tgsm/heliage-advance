@@ -1022,7 +1022,7 @@ void ARM7::Thumb_DisassembleLoadStoreHalfword(const u16 opcode) {
         disasm += "STRH";
     }
 
-    disasm += fmt::format(" {}, [{}, #0x{:X}]", GetRegAsStr(rd), GetRegAsStr(rb), imm);
+    disasm += fmt::format(" {}, [{}, #0x{:X}]", GetRegAsStr(rd), GetRegAsStr(rb), imm << 1);
 
     LTRACE_THUMB("{}", disasm);
 }
