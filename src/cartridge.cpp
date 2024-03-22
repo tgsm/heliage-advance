@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <fstream>
 #include "cartridge.h"
 #include "common/logging.h"
