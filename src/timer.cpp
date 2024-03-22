@@ -9,8 +9,8 @@ void Timer::SetControl(const u16 value) {
     control.raw = value;
 
     // Bits 3-5 and 8-15 are not used.
-    control.raw &= ~Common::GetBitMaskFromRange<3, 5, u16>();
-    control.raw &= ~Common::GetBitMaskFromRange<8, 15, u16>();
+    Common::DisableBitRange<3, 5>(control.raw);
+    Common::DisableBitRange<8, 15>(control.raw);
 }
 
 void Timers::AdvanceCycles(u16 cycles, const CycleType cycle_type) {

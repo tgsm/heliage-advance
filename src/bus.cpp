@@ -695,8 +695,10 @@ void Bus::SetDMAControl(const u16 value) {
     static_assert(dma_channel_no < 4);
     DMAChannel& channel = dma_channels[dma_channel_no];
 
+    channel.control.raw = value;
+
     // Bits 4-0 are unused.
-    channel.control.raw = value & ~Common::GetBitMaskFromRange<4, 0, u16>();
+    Common::DisableBitRange<4, 0>(channel.control.raw);
 
     if constexpr (dma_channel_no != 3) {
         // Bit 11 is only available on DMA 3.
