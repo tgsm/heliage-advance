@@ -8,7 +8,7 @@ class Cartridge {
 public:
     explicit Cartridge(const std::filesystem::path& cartridge_path);
 
-    [[nodiscard]] std::string GetGameTitle();
+    [[nodiscard]] std::string GetGameTitle() const;
 
     [[nodiscard]] std::size_t GetSize() const { return rom_size; }
 

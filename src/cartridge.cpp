@@ -23,7 +23,7 @@ void Cartridge::LoadCartridge(const std::filesystem::path& cartridge_path) {
     LINFO("cartridge: loaded {} bytes ({} KB)", rom_size, rom_size / 1024);
 }
 
-std::string Cartridge::GetGameTitle() {
+std::string Cartridge::GetGameTitle() const {
     std::string title;
 
     const auto title_begin = rom.begin() + TITLE_OFFSET;
