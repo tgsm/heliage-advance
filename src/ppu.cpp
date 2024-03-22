@@ -315,7 +315,7 @@ void PPU::RenderTiledSpriteScanline(const Sprite& sprite) {
             break;
         case SpriteShape::Forbidden:
         default:
-            UNIMPLEMENTED_MSG("Unimplemented sprite shape {}", shape);
+            UNIMPLEMENTED_MSG("Unimplemented sprite shape {}", Common::GetUnderlyingValue(shape));
     }
 
     if (vcount < y || vcount >= y + height) {

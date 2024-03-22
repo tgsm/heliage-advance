@@ -68,7 +68,7 @@ private:
 
                 return gpr[reg];
             default:
-                UNREACHABLE_MSG("invalid ARM7 processor mode 0x{:X}", cpsr.flags.processor_mode);
+                UNREACHABLE_MSG("invalid ARM7 processor mode 0x{:X}", Common::GetUnderlyingValue(cpsr.flags.processor_mode));
         }
     }
 
@@ -126,7 +126,7 @@ private:
                 gpr[reg] = value;
                 break;
             default:
-                UNREACHABLE_MSG("invalid ARM7 processor mode 0x{:X}", cpsr.flags.processor_mode);
+                UNREACHABLE_MSG("invalid ARM7 processor mode 0x{:X}", Common::GetUnderlyingValue(cpsr.flags.processor_mode));
         }
 
         if (reg == 15) {
@@ -147,7 +147,7 @@ private:
             case ProcessorMode::IRQ:
                 return spsr_irq.raw;
             default:
-                UNIMPLEMENTED_MSG("unimplemented get spsr from mode {:05b}", cpsr.flags.processor_mode);
+                UNIMPLEMENTED_MSG("unimplemented get spsr from mode {:05b}", Common::GetUnderlyingValue(cpsr.flags.processor_mode));
         }
     }
 
@@ -166,7 +166,7 @@ private:
                 spsr_irq.raw = cpsr_raw;
                 break;
             default:
-                UNIMPLEMENTED_MSG("unimplemented set spsr for mode {:05b}", cpsr.flags.processor_mode);
+                UNIMPLEMENTED_MSG("unimplemented set spsr for mode {:05b}", Common::GetUnderlyingValue(cpsr.flags.processor_mode));
         }
     }
 
