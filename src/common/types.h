@@ -24,4 +24,9 @@ constexpr std::size_t TypeSizeInBits = sizeof(T) * 8;
 template <typename T1, typename T2>
 constexpr bool TypeIsSame = std::is_same_v<T1, T2>;
 
+template <typename Enum>
+static constexpr auto GetUnderlyingValue(Enum e) {
+    return static_cast<std::underlying_type_t<Enum>>(e);
+}
+
 }
