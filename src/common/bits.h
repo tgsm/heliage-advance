@@ -39,4 +39,17 @@ static constexpr T GetBitRange(const T value) {
     return (value >> LowerBound) & mask;
 }
 
+template <u8 UpperBound, u8 LowerBound, std::integral T>
+static constexpr void DisableBitRange(T& value) {
+    if (UpperBound < LowerBound) {
+        DisableBitRange<LowerBound, UpperBound, T>(value);
+        return;
+    }
+
+    static_assert(UpperBound < TypeSizeInBits<T>, "Upper bound is higher than T's size");
+    static_assert(UpperBound != LowerBound);
+
+    value &= ~Common::GetBitMaskFromRange<UpperBound, LowerBound, T>();
+}
+
 }
